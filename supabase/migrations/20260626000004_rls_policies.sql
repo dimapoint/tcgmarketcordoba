@@ -34,15 +34,17 @@ CREATE POLICY "public_read" ON card_printings FOR SELECT USING (true);
 
 -- Profiles: public read, owner write
 CREATE POLICY "profiles_public_read"   ON profiles FOR SELECT USING (true);
-CREATE POLICY "profiles_owner_update"  ON profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "profiles_owner_update"  ON profiles
+  FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
 -- Contact methods: authenticated read only, owner write
+-- Fix: auth.role() is deprecated — use TO clause instead
 CREATE POLICY "contact_methods_auth_read" ON contact_methods
-  FOR SELECT USING (auth.role() = 'authenticated');
+  FOR SELECT TO authenticated USING (true);
 CREATE POLICY "contact_methods_owner_insert" ON contact_methods
   FOR INSERT WITH CHECK (auth.uid() = profile_id);
 CREATE POLICY "contact_methods_owner_update" ON contact_methods
-  FOR UPDATE USING (auth.uid() = profile_id);
+  FOR UPDATE USING (auth.uid() = profile_id) WITH CHECK (auth.uid() = profile_id);
 CREATE POLICY "contact_methods_owner_delete" ON contact_methods
   FOR DELETE USING (auth.uid() = profile_id);
 
@@ -54,7 +56,7 @@ CREATE POLICY "listings_owner_read_all" ON listings
 CREATE POLICY "listings_owner_insert" ON listings
   FOR INSERT WITH CHECK (auth.uid() = seller_id);
 CREATE POLICY "listings_owner_update" ON listings
-  FOR UPDATE USING (auth.uid() = seller_id);
+  FOR UPDATE USING (auth.uid() = seller_id) WITH CHECK (auth.uid() = seller_id);
 CREATE POLICY "listings_owner_delete" ON listings
   FOR DELETE USING (auth.uid() = seller_id);
 
@@ -62,6 +64,10 @@ CREATE POLICY "listings_owner_delete" ON listings
 CREATE POLICY "photos_public_read" ON listing_photos
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM listings l WHERE l.id = listing_id AND l.status = 'active')
+  );
+CREATE POLICY "photos_owner_read" ON listing_photos
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM listings l WHERE l.id = listing_id AND l.seller_id = auth.uid())
   );
 CREATE POLICY "photos_owner_insert" ON listing_photos
   FOR INSERT WITH CHECK (
