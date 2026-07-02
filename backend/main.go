@@ -10,6 +10,7 @@ import (
 	"tcgmarketcordoba/internal/config"
 	"tcgmarketcordoba/internal/db"
 	"tcgmarketcordoba/internal/httpx"
+	"tcgmarketcordoba/internal/listings"
 )
 
 func main() {
@@ -37,6 +38,10 @@ func main() {
 	mux.HandleFunc("POST /auth/signin", authH.SignIn)
 	mux.HandleFunc("POST /auth/refresh", authH.Refresh)
 	mux.Handle("GET /auth/me", requireAuth(http.HandlerFunc(authH.Me)))
+
+	listingH := &listings.Handler{Store: listings.NewPgStore(pool)}
+	mux.HandleFunc("GET /listings", listingH.List)
+	mux.HandleFunc("GET /listings/{id}", listingH.Get)
 
 	log.Printf("API listening on :%s", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, httpx.CORS(mux)))
