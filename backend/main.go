@@ -1,23 +1,32 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"log"
 	"net/http"
-	"os"
+
+	"tcgmarketcordoba/internal/config"
+	"tcgmarketcordoba/internal/db"
+	"tcgmarketcordoba/internal/httpx"
 )
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	pool, err := db.Connect(context.Background(), cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		httpx.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	log.Printf("API listening on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Printf("API listening on :%s", cfg.Port)
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, httpx.CORS(mux)))
 }

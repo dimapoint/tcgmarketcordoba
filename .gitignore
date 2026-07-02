@@ -46,3 +46,7 @@ app.*.map.json
 
 # Environment variables — contains secrets, never commit
 .env
+backend/.env
+
+# Go build artifacts
+backend/*.exe
