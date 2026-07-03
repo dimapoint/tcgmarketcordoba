@@ -15,8 +15,7 @@ class Profile {
         id: j['id'] as String,
         username: j['username'] as String,
         cityId: j['city_id'] as String?,
-        cityName:
-            (j['cities'] as Map<String, dynamic>?)?['name'] as String?,
+        cityName: j['city_name'] as String?,
       );
 }
 

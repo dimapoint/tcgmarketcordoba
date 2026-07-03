@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../core/supabase/client.dart';
+import '../../core/api/api_client.dart';
+import '../../core/api/api_provider.dart';
 import '../../shared/models/profile.dart';
 
 abstract class ProfileRepository {
@@ -11,61 +11,45 @@ abstract class ProfileRepository {
   Future<void> deleteContactMethod(String id);
 }
 
-class SupabaseProfileRepository implements ProfileRepository {
-  final SupabaseClient _client;
-  SupabaseProfileRepository(this._client);
+class ApiProfileRepository implements ProfileRepository {
+  final ApiClient _api;
+  ApiProfileRepository(this._api);
+
+  // los userId de los parámetros quedan por compatibilidad;
+  // el backend identifica al usuario por el JWT
 
   @override
   Future<Profile> fetchProfile(String userId) async {
-    final data = await _client
-        .from('profiles')
-        .select('id, username, city_id, cities(name)')
-        .eq('id', userId)
-        .single();
-    return Profile.fromJson(data);
+    final data = await _api.get('/me/profile', auth: true);
+    return Profile.fromJson(data as Map<String, dynamic>);
   }
 
   @override
-  Future<void> updateProfile(
-    String userId, {
-    String? username,
-    String? cityId,
-  }) async {
-    final updates = <String, dynamic>{};
-    if (username != null) updates['username'] = username;
-    if (cityId != null) updates['city_id'] = cityId;
-    await _client.from('profiles').update(updates).eq('id', userId);
+  Future<void> updateProfile(String userId,
+      {String? username, String? cityId}) {
+    return _api.patch('/me/profile', auth: true, body: {
+      'username': ?username,
+      'city_id': ?cityId,
+    });
   }
 
   @override
   Future<List<ContactMethod>> fetchContactMethods(String userId) async {
-    final data = await _client
-        .from('contact_methods')
-        .select('id, type, value')
-        .eq('profile_id', userId);
+    final data = await _api.get('/me/contacts', auth: true);
     return (data as List)
         .map((j) => ContactMethod.fromJson(j as Map<String, dynamic>))
         .toList();
   }
 
   @override
-  Future<void> upsertContactMethod(
-    String userId,
-    String type,
-    String value,
-  ) async {
-    await _client.from('contact_methods').upsert(
-      {'profile_id': userId, 'type': type, 'value': value},
-      onConflict: 'profile_id,type',
-    );
-  }
+  Future<void> upsertContactMethod(String userId, String type, String value) =>
+      _api.put('/me/contacts', auth: true, body: {'type': type, 'value': value});
 
   @override
-  Future<void> deleteContactMethod(String id) async {
-    await _client.from('contact_methods').delete().eq('id', id);
-  }
+  Future<void> deleteContactMethod(String id) =>
+      _api.delete('/me/contacts/$id', auth: true);
 }
 
 final profileRepositoryProvider = Provider<ProfileRepository>(
-  (ref) => SupabaseProfileRepository(supabase),
+  (ref) => ApiProfileRepository(ref.watch(apiClientProvider)),
 );
