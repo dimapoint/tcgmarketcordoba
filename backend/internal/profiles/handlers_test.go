@@ -90,6 +90,19 @@ func TestPutContactRejectsInvalidType(t *testing.T) {
 	}
 }
 
+func TestSellerContactsIsPublic(t *testing.T) {
+	h := &Handler{Store: &fakeStore{contacts: []ContactMethod{
+		{ID: "c1", Type: "whatsapp", Value: "+549351"},
+	}}}
+	req := httptest.NewRequest("GET", "/profiles/seller-1/contacts", nil)
+	req.SetPathValue("id", "seller-1")
+	rec := httptest.NewRecorder()
+	h.SellerContacts(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "whatsapp") {
+		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body)
+	}
+}
+
 func TestListCities(t *testing.T) {
 	h := &Handler{Store: &fakeStore{}}
 	rec := httptest.NewRecorder()

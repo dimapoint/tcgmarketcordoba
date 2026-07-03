@@ -88,6 +88,17 @@ func (h *Handler) DeleteContact(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// SellerContacts expone los métodos de contacto de un vendedor (público:
+// es la vía para concretar la compra, igual que permitía la RLS anterior).
+func (h *Handler) SellerContacts(w http.ResponseWriter, r *http.Request) {
+	cs, err := h.Store.Contacts(r.Context(), r.PathValue("id"))
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "error interno")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, cs)
+}
+
 func (h *Handler) ListCities(w http.ResponseWriter, r *http.Request) {
 	cs, err := h.Store.Cities(r.Context())
 	if err != nil {

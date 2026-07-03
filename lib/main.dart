@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/api/api_client.dart';
 import 'core/api/api_provider.dart';
 import 'core/api/token_store.dart';
@@ -11,11 +10,6 @@ import 'core/router/router.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load();
-  // TODO(migración): quitar cuando browse/profile/post dejen de usar Supabase (Task 15)
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    publishableKey: dotenv.env['SUPABASE_ANON_KEY']!,
-  );
 
   final prefs = await SharedPreferences.getInstance();
   final api = ApiClient(

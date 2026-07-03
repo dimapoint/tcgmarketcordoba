@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/supabase/client.dart';
+import '../../core/api/api_provider.dart';
 import '../../shared/models/listing.dart';
 import 'listing_repository.dart';
 
@@ -17,9 +17,7 @@ final listingDetailProvider =
 
 final sellerContactsProvider = FutureProvider.autoDispose
     .family<List<Map<String, dynamic>>, String>((ref, sellerId) async {
-  final data = await supabase
-      .from('contact_methods')
-      .select('type, value')
-      .eq('profile_id', sellerId);
+  final data =
+      await ref.watch(apiClientProvider).get('/profiles/$sellerId/contacts');
   return (data as List).cast<Map<String, dynamic>>();
 });

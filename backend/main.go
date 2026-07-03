@@ -54,6 +54,7 @@ func main() {
 
 	profileH := &profiles.Handler{Store: profiles.NewPgStore(pool)}
 	mux.HandleFunc("GET /cities", profileH.ListCities)
+	mux.HandleFunc("GET /profiles/{id}/contacts", profileH.SellerContacts)
 	mux.Handle("GET /me/profile", requireAuth(http.HandlerFunc(profileH.Me)))
 	mux.Handle("PATCH /me/profile", requireAuth(http.HandlerFunc(profileH.UpdateMe)))
 	mux.Handle("GET /me/contacts", requireAuth(http.HandlerFunc(profileH.MyContacts)))
