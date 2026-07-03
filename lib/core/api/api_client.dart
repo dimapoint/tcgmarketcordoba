@@ -23,7 +23,9 @@ class ApiClient {
     required this.baseUrl,
     required TokenStore tokens,
     http.Client? httpClient,
-  })  : _tokens = tokens,
+  })  // campo privado con parámetro nombrado: no aplica this._tokens
+      // ignore: prefer_initializing_formals
+      : _tokens = tokens,
         _http = httpClient ?? http.Client() {
     _session = _tokens.load();
   }

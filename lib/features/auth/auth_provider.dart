@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../core/supabase/client.dart';
+import '../../core/api/api_provider.dart';
+import '../../core/api/session.dart';
 import 'auth_repository.dart';
 
-final authSessionProvider = StreamProvider<Session?>((ref) {
-  return supabase.auth.onAuthStateChange.map((event) => event.session);
+final authSessionProvider = StreamProvider<AuthSession?>((ref) {
+  return ref.watch(apiClientProvider).onSessionChange;
 });
 
 class AuthActionsNotifier extends AsyncNotifier<void> {
