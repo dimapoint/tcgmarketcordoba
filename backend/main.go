@@ -12,6 +12,7 @@ import (
 	"tcgmarketcordoba/internal/db"
 	"tcgmarketcordoba/internal/httpx"
 	"tcgmarketcordoba/internal/listings"
+	"tcgmarketcordoba/internal/profiles"
 )
 
 func main() {
@@ -46,6 +47,14 @@ func main() {
 
 	cardH := &cards.Handler{Store: cards.NewPgStore(pool)}
 	mux.HandleFunc("GET /cards/search", cardH.Search)
+
+	profileH := &profiles.Handler{Store: profiles.NewPgStore(pool)}
+	mux.HandleFunc("GET /cities", profileH.ListCities)
+	mux.Handle("GET /me/profile", requireAuth(http.HandlerFunc(profileH.Me)))
+	mux.Handle("PATCH /me/profile", requireAuth(http.HandlerFunc(profileH.UpdateMe)))
+	mux.Handle("GET /me/contacts", requireAuth(http.HandlerFunc(profileH.MyContacts)))
+	mux.Handle("PUT /me/contacts", requireAuth(http.HandlerFunc(profileH.PutContact)))
+	mux.Handle("DELETE /me/contacts/{id}", requireAuth(http.HandlerFunc(profileH.DeleteContact)))
 
 	log.Printf("API listening on :%s", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, httpx.CORS(mux)))
