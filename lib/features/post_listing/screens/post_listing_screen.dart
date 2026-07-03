@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../core/supabase/client.dart';
+import '../../../core/api/api_client.dart';
 import '../photo_repository.dart';
 import '../post_listing_provider.dart';
+import '../post_listing_repository.dart';
 import '../../../shared/models/card_printing.dart';
 
 class PostListingScreen extends ConsumerStatefulWidget {
@@ -43,46 +44,29 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
     final form = ref.read(postListingFormProvider);
     if (!form.isValid) return;
 
-    final sellerId = supabase.auth.currentUser!.id;
+    try {
+      final listingId =
+          await ref.read(postListingRepositoryProvider).createListing(
+                cardPrintingId: form.cardPrinting!.id,
+                condition: form.condition!,
+                price: form.price,
+                description: form.description,
+                cityId: form.cityId,
+              );
 
-    final profile = await supabase
-        .from('profiles')
-        .select('city_id')
-        .eq('id', sellerId)
-        .single();
-    final cityId = form.cityId ?? profile['city_id'] as String?;
-    if (cityId == null) {
+      final photoRepo = ref.read(photoRepositoryProvider);
+      for (var i = 0; i < form.photoPaths.length; i++) {
+        await photoRepo.upload(
+          listingId: listingId,
+          file: File(form.photoPaths[i]),
+          order: i + 1,
+        );
+      }
+    } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Configurá tu ciudad en tu perfil primero.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
       return;
-    }
-
-    final listing = await supabase.from('listings').insert({
-      'seller_id': sellerId,
-      'card_printing_id': form.cardPrinting!.id,
-      'condition': form.condition,
-      'price': form.price,
-      'description': form.description,
-      'city_id': cityId,
-    }).select().single();
-
-    final listingId = listing['id'] as String;
-
-    final photoRepo = ref.read(photoRepositoryProvider);
-    for (var i = 0; i < form.photoPaths.length; i++) {
-      final url = await photoRepo.upload(
-        listingId: listingId,
-        file: File(form.photoPaths[i]),
-        order: i + 1,
-      );
-      await supabase.from('listing_photos').insert({
-        'listing_id': listingId,
-        'storage_path': url,
-        'display_order': i + 1,
-      });
     }
 
     ref.read(postListingFormProvider.notifier).reset();

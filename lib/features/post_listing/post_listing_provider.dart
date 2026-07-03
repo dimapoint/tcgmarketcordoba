@@ -19,12 +19,12 @@ class PostListingForm {
     this.cityId,
   });
 
+  // cityId es opcional: el backend usa la ciudad del perfil como fallback
   bool get isValid =>
       cardPrinting != null &&
       condition != null &&
       price > 0 &&
-      photoPaths.isNotEmpty &&
-      cityId != null;
+      photoPaths.isNotEmpty;
 
   PostListingForm copyWith({
     CardPrinting? cardPrinting,
