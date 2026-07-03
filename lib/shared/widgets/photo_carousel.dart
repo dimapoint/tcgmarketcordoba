@@ -34,7 +34,7 @@ class _PhotoCarouselState extends State<PhotoCarousel> {
             onPageChanged: (i) => setState(() => _current = i),
             itemBuilder:
                 (_, i) => CachedNetworkImage(
-                  imageUrl: widget.photos[i].storagePath,
+                  imageUrl: widget.photos[i].url,
                   fit: BoxFit.cover,
                 ),
           ),

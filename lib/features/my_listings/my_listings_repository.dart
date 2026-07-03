@@ -1,46 +1,39 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../core/supabase/client.dart';
-import '../../features/browse/listing_repository.dart';
+import '../../core/api/api_client.dart';
+import '../../core/api/api_provider.dart';
 import '../../shared/models/listing.dart';
 
 abstract class MyListingsRepository {
-  Future<List<Listing>> fetchMine({required String sellerId, required String status});
+  Future<List<Listing>> fetchMine(
+      {required String sellerId, required String status});
   Future<void> markSold(String listingId);
   Future<void> remove(String listingId);
 }
 
-class SupabaseMyListingsRepository implements MyListingsRepository {
-  final SupabaseClient _client;
-  SupabaseMyListingsRepository(this._client);
+class ApiMyListingsRepository implements MyListingsRepository {
+  final ApiClient _api;
+  ApiMyListingsRepository(this._api);
 
   @override
-  Future<List<Listing>> fetchMine({
-    required String sellerId,
-    required String status,
-  }) async {
-    final data = await _client
-        .from('listings')
-        .select(listingSelect)
-        .eq('seller_id', sellerId)
-        .eq('status', status)
-        .order('created_at', ascending: false);
+  Future<List<Listing>> fetchMine(
+      {required String sellerId, required String status}) async {
+    // sellerId sale del JWT en el backend; el parámetro queda por compatibilidad
+    final data =
+        await _api.get('/me/listings', query: {'status': status}, auth: true);
     return (data as List)
         .map((j) => Listing.fromJson(j as Map<String, dynamic>))
         .toList();
   }
 
   @override
-  Future<void> markSold(String listingId) async {
-    await _client.from('listings').update({'status': 'sold'}).eq('id', listingId);
-  }
+  Future<void> markSold(String listingId) =>
+      _api.patch('/listings/$listingId', body: {'status': 'sold'}, auth: true);
 
   @override
-  Future<void> remove(String listingId) async {
-    await _client.from('listings').update({'status': 'removed'}).eq('id', listingId);
-  }
+  Future<void> remove(String listingId) => _api
+      .patch('/listings/$listingId', body: {'status': 'removed'}, auth: true);
 }
 
 final myListingsRepositoryProvider = Provider<MyListingsRepository>(
-  (ref) => SupabaseMyListingsRepository(supabase),
+  (ref) => ApiMyListingsRepository(ref.watch(apiClientProvider)),
 );

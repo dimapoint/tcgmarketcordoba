@@ -23,7 +23,7 @@ class ListingCard extends StatelessWidget {
               child:
                   firstPhoto != null
                       ? CachedNetworkImage(
-                        imageUrl: firstPhoto.storagePath,
+                        imageUrl: firstPhoto.url,
                         fit: BoxFit.cover,
                         width: double.infinity,
                       )

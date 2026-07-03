@@ -19,20 +19,16 @@ class CardPrinting {
     this.imageUrl,
   });
 
-  factory CardPrinting.fromJson(Map<String, dynamic> j) {
-    final card = j['cards'] as Map<String, dynamic>;
-    final set_ = j['sets'] as Map<String, dynamic>;
-    return CardPrinting(
-      id: j['id'] as String,
-      cardId: j['card_id'] as String,
-      cardName: card['name'] as String,
-      setName: set_['name'] as String,
-      setCode: set_['code'] as String,
-      cardNumber: j['card_number'] as String,
-      isFoil: j['is_foil'] as bool,
-      imageUrl: j['image_url'] as String?,
-    );
-  }
+  factory CardPrinting.fromJson(Map<String, dynamic> j) => CardPrinting(
+        id: j['id'] as String,
+        cardId: j['card_id'] as String,
+        cardName: j['card_name'] as String,
+        setName: j['set_name'] as String,
+        setCode: j['set_code'] as String,
+        cardNumber: j['card_number'] as String,
+        isFoil: j['is_foil'] as bool,
+        imageUrl: j['image_url'] as String?,
+      );
 
   String get displayName =>
       '${isFoil ? "✦ " : ""}$cardName — $setCode #$cardNumber';
