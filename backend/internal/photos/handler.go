@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -96,6 +97,7 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	path := fmt.Sprintf("listings/%s/%d.%s", listingID, order, ext)
 	url, err := h.Uploader.Upload(r.Context(), path, contentType, file)
 	if err != nil {
+		log.Printf("photo upload failed: %v", err)
 		httpx.Error(w, http.StatusBadGateway, "error subiendo la foto")
 		return
 	}

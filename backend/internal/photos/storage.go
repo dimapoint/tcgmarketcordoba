@@ -24,7 +24,10 @@ func (s *SupabaseStorage) Upload(ctx context.Context, path, contentType string, 
 	if err != nil {
 		return "", err
 	}
+	// las keys nuevas de Supabase (sb_secret_...) van en el header apikey;
+	// las legacy JWT usan Authorization Bearer — mandamos ambos
 	req.Header.Set("Authorization", "Bearer "+s.ServiceKey)
+	req.Header.Set("apikey", s.ServiceKey)
 	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("x-upsert", "true")
 
