@@ -44,6 +44,9 @@ func main() {
 	listingH := &listings.Handler{Store: listings.NewPgStore(pool)}
 	mux.HandleFunc("GET /listings", listingH.List)
 	mux.HandleFunc("GET /listings/{id}", listingH.Get)
+	mux.Handle("POST /listings", requireAuth(http.HandlerFunc(listingH.Create)))
+	mux.Handle("PATCH /listings/{id}", requireAuth(http.HandlerFunc(listingH.Patch)))
+	mux.Handle("GET /me/listings", requireAuth(http.HandlerFunc(listingH.MyListings)))
 
 	cardH := &cards.Handler{Store: cards.NewPgStore(pool)}
 	mux.HandleFunc("GET /cards/search", cardH.Search)
