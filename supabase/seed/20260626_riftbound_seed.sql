@@ -4,7 +4,7 @@ INSERT INTO games (id, name, slug) VALUES
 
 -- Sets
 INSERT INTO sets (game_id, name, code, release_date) VALUES
-  ('00000000-0000-0000-0000-000000000001', 'Origins',   'ORI', '2025-10-01'),
+  ('00000000-0000-0000-0000-000000000001', 'Origins',   'OGN', '2025-10-01'),
   ('00000000-0000-0000-0000-000000000001', 'Unleashed', 'UNL', '2026-05-08');
 
 -- Card types
@@ -73,3 +73,41 @@ UNION ALL
 SELECT 'Mendoza', id FROM provinces WHERE name = 'Mendoza'
 UNION ALL
 SELECT 'Tucumán', id FROM provinces WHERE name = 'Tucumán';
+
+-- Real Riftbound cards (rarity lives on card_printings, not cards: an
+-- alt-art/overnumbered printing can carry a different rarity tier than
+-- the base printing of the same card).
+WITH new_cards AS (
+  INSERT INTO cards (card_type_id, name, energy_cost, might)
+  SELECT
+    (SELECT id FROM card_types WHERE game_id = '00000000-0000-0000-0000-000000000001' AND name = v.card_type),
+    v.name, v.energy_cost, v.might
+  FROM (VALUES
+    ('Champion', 'Vi, Hotheaded',       4,    3),
+    ('Champion', 'Vi, Peacekeeper',     5,    5),
+    ('Legend',   'Piltover Enforcer',   NULL, NULL),
+    ('Champion', 'Jinx, Demolitionist', 3,    4),
+    ('Champion', 'Jinx, Rebel',         5,    5),
+    ('Legend',   'Loose Cannon',        NULL, NULL)
+  ) AS v(card_type, name, energy_cost, might)
+  RETURNING id, name
+)
+INSERT INTO card_printings (card_id, set_id, card_number, is_foil, rarity_id)
+SELECT
+  nc.id,
+  (SELECT id FROM sets WHERE game_id = '00000000-0000-0000-0000-000000000001' AND code = p.set_code),
+  p.card_number,
+  false,
+  (SELECT id FROM rarities WHERE game_id = '00000000-0000-0000-0000-000000000001' AND name = p.rarity)
+FROM (VALUES
+  ('Vi, Hotheaded',       'UNL', '030',  'Epic'),
+  ('Vi, Hotheaded',       'UNL', '030a', 'Alternate Art'),
+  ('Vi, Peacekeeper',     'UNL', '176',  'Epic'),
+  ('Piltover Enforcer',   'UNL', '187',  'Rare'),
+  ('Piltover Enforcer',   'UNL', '229',  'Overnumbered'),
+  ('Jinx, Demolitionist', 'OGN', '030',  'Epic'),
+  ('Jinx, Rebel',         'OGN', '202',  'Epic'),
+  ('Loose Cannon',        'OGN', '251',  'Rare'),
+  ('Loose Cannon',        'OGN', '301',  'Overnumbered')
+) AS p(name, set_code, card_number, rarity)
+JOIN new_cards nc ON nc.name = p.name;
