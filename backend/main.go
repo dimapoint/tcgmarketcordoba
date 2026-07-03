@@ -12,6 +12,7 @@ import (
 	"tcgmarketcordoba/internal/db"
 	"tcgmarketcordoba/internal/httpx"
 	"tcgmarketcordoba/internal/listings"
+	"tcgmarketcordoba/internal/photos"
 	"tcgmarketcordoba/internal/profiles"
 )
 
@@ -58,6 +59,16 @@ func main() {
 	mux.Handle("GET /me/contacts", requireAuth(http.HandlerFunc(profileH.MyContacts)))
 	mux.Handle("PUT /me/contacts", requireAuth(http.HandlerFunc(profileH.PutContact)))
 	mux.Handle("DELETE /me/contacts/{id}", requireAuth(http.HandlerFunc(profileH.DeleteContact)))
+
+	photoH := &photos.Handler{
+		Store: photos.NewPgStore(pool),
+		Uploader: &photos.SupabaseStorage{
+			BaseURL:    cfg.SupabaseURL,
+			ServiceKey: cfg.SupabaseServiceKey,
+			Bucket:     "listing-photos",
+		},
+	}
+	mux.Handle("POST /listings/{id}/photos", requireAuth(http.HandlerFunc(photoH.Upload)))
 
 	log.Printf("API listening on :%s", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, httpx.CORS(mux)))
