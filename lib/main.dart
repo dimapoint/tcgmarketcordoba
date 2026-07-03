@@ -6,6 +6,7 @@ import 'core/api/api_client.dart';
 import 'core/api/api_provider.dart';
 import 'core/api/token_store.dart';
 import 'core/router/router.dart';
+import 'core/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,10 +33,9 @@ class App extends ConsumerWidget {
     return MaterialApp.router(
       title: 'TCGMarket Córdoba',
       routerConfig: router,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A237E)),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
     );
   }
 }

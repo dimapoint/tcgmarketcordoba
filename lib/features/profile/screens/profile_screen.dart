@@ -13,25 +13,23 @@ class ProfileScreen extends ConsumerWidget {
     final contactsAsync = ref.watch(contactMethodsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi perfil'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () =>
-                ref.read(authActionsProvider.notifier).signOut(),
+      body: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: profileAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Error: $e')),
+              data: (profile) => profile == null
+                  ? const SizedBox()
+                  : _ProfileBody(
+                      profile: profile,
+                      contactsAsync: contactsAsync,
+                    ),
+            ),
           ),
-        ],
-      ),
-      body: profileAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (profile) => profile == null
-            ? const SizedBox()
-            : _ProfileBody(
-                profile: profile,
-                contactsAsync: contactsAsync,
-              ),
+        ),
       ),
     );
   }
@@ -61,64 +59,131 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
     super.dispose();
   }
 
+  static (IconData, String) _contactStyle(String type) => switch (type) {
+        'whatsapp' => (Icons.chat, 'WhatsApp'),
+        'instagram' => (Icons.camera_alt, 'Instagram'),
+        'telegram' => (Icons.send, 'Telegram'),
+        'email' => (Icons.email, 'Email'),
+        _ => (Icons.contact_page, type),
+      };
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
-          'Usuario',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
-              child: TextField(
-                controller: _usernameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre de usuario',
-                ),
+              child: Text(
+                'Mi perfil',
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.save),
-              onPressed: () => ref
-                  .read(profileActionsProvider.notifier)
-                  .updateUsername(_usernameCtrl.text.trim()),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.logout, size: 18),
+              label: const Text('Salir'),
+              onPressed: () =>
+                  ref.read(authActionsProvider.notifier).signOut(),
             ),
           ],
         ),
-        const SizedBox(height: 24),
-        const Text(
-          'Métodos de contacto',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Cuenta', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _usernameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre de usuario',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                      icon: const Icon(Icons.save_outlined),
+                      tooltip: 'Guardar',
+                      onPressed: () => ref
+                          .read(profileActionsProvider.notifier)
+                          .updateUsername(_usernameCtrl.text.trim()),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
-        const SizedBox(height: 8),
-        widget.contactsAsync.when(
-          loading: () => const CircularProgressIndicator(),
-          error: (e, _) => Text('Error: $e'),
-          data: (contacts) => Column(
-            children: [
-              ...contacts.map(
-                (c) => ListTile(
-                  leading: const Icon(Icons.contact_page),
-                  title: Text('${c.type}: ${c.value}'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => ref
-                        .read(profileActionsProvider.notifier)
-                        .deleteContact(c.id),
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Métodos de contacto',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Así te van a contactar los compradores.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8),
+                widget.contactsAsync.when(
+                  loading: () => const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: CircularProgressIndicator(),
+                  ),
+                  error: (e, _) => Text('Error: $e'),
+                  data: (contacts) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ...contacts.map((c) {
+                        final (icon, label) = _contactStyle(c.type);
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            backgroundColor:
+                                scheme.primary.withValues(alpha: 0.12),
+                            child: Icon(icon, size: 20, color: scheme.primary),
+                          ),
+                          title: Text(label),
+                          subtitle: Text(c.value),
+                          trailing: IconButton(
+                            icon: Icon(Icons.delete_outline,
+                                color: scheme.error),
+                            tooltip: 'Eliminar',
+                            onPressed: () => ref
+                                .read(profileActionsProvider.notifier)
+                                .deleteContact(c.id),
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => _showAddContactDialog(context),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Agregar contacto'),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () => _showAddContactDialog(context),
-                icon: const Icon(Icons.add),
-                label: const Text('Agregar contacto'),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
@@ -137,9 +202,9 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButton<String>(
-                value: type,
-                isExpanded: true,
+              DropdownButtonFormField<String>(
+                initialValue: type,
+                decoration: const InputDecoration(labelText: 'Tipo'),
                 items: const [
                   DropdownMenuItem(
                     value: 'whatsapp',
@@ -160,11 +225,12 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
                 ],
                 onChanged: (v) => setDialogState(() => type = v!),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               TextField(
                 controller: valueCtrl,
                 decoration: const InputDecoration(
-                  hintText: 'Valor (número, usuario, etc.)',
+                  labelText: 'Valor',
+                  hintText: 'Número, usuario, etc.',
                 ),
               ),
             ],

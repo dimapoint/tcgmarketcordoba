@@ -31,6 +31,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/',            builder: (c, s) => const BrowseScreen()),
           GoRoute(path: '/post',        builder: (c, s) => const PostListingScreen()),
           GoRoute(path: '/my-listings', builder: (c, s) => const MyListingsScreen()),
+          GoRoute(path: '/profile',     builder: (c, s) => const ProfileScreen()),
         ],
       ),
       GoRoute(
@@ -39,7 +40,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/sign-in',  builder: (c, s) => const SignInScreen()),
       GoRoute(path: '/sign-up',  builder: (c, s) => const SignUpScreen()),
-      GoRoute(path: '/profile',  builder: (c, s) => const ProfileScreen()),
     ],
   );
 });

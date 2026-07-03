@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/max_width.dart';
+import '../../../shared/widgets/scaffold_with_nav.dart';
 import '../listing_provider.dart';
 import '../widgets/listing_card.dart';
 
@@ -9,41 +14,67 @@ class BrowseScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final listings = ref.watch(listingsProvider);
+    final isWide =
+        MediaQuery.sizeOf(context).width >= AppTheme.mobileBreakpoint;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('TCGMarket Córdoba'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(56),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: SearchBar(
-              hintText: 'Buscar carta...',
-              onChanged: (v) => ref.read(searchQueryProvider.notifier).state = v,
-              leading: const Icon(Icons.search),
-            ),
+      body: SafeArea(
+        child: CenteredMaxWidth(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(16, isWide ? 24 : 16, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!isWide) ...[
+                      const Wordmark(),
+                      const SizedBox(height: 12),
+                    ],
+                    SearchBar(
+                      hintText: 'Buscar carta...',
+                      onChanged: (v) =>
+                          ref.read(searchQueryProvider.notifier).state = v,
+                      leading: const Icon(Icons.search),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: listings.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('Error: $e')),
+                  data: (items) => items.isEmpty
+                      ? EmptyState(
+                          icon: Icons.style_outlined,
+                          message: 'Todavía no hay cartas publicadas',
+                          actionLabel: 'Publicá la primera',
+                          onAction: () => context.go('/post'),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: () async =>
+                              ref.invalidate(listingsProvider),
+                          child: GridView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                            gridDelegate:
+                                const SliverGridDelegateWithMaxCrossAxisExtent(
+                              maxCrossAxisExtent: 230,
+                              childAspectRatio: 0.62,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                            ),
+                            itemCount: items.length,
+                            itemBuilder: (_, i) =>
+                                ListingCard(listing: items[i]),
+                          ),
+                        ),
+                ),
+              ),
+            ],
           ),
         ),
-      ),
-      body: listings.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data:
-            (items) =>
-                items.isEmpty
-                    ? const Center(child: Text('No hay publicaciones'))
-                    : GridView.builder(
-                      padding: const EdgeInsets.all(12),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.68,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                      ),
-                      itemCount: items.length,
-                      itemBuilder: (_, i) => ListingCard(listing: items[i]),
-                    ),
       ),
     );
   }
