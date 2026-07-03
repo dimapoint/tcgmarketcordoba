@@ -51,5 +51,6 @@ backend/.env
 # Go build artifacts
 backend/*.exe
 
-# Claude Code local state
-.claude/
+# Claude Code local state (skills are versioned, the rest is local)
+.claude/*
+!.claude/skills/
