@@ -79,17 +79,28 @@ class _TopHeader extends StatelessWidget {
           children: [
             const Wordmark(),
             const SizedBox(width: 32),
-            for (final (i, d) in ScaffoldWithNav._destinations.indexed)
-              Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: _NavButton(
-                  label: d.label,
-                  icon: selectedIndex == i ? d.selectedIcon : d.icon,
-                  selected: selectedIndex == i,
-                  onTap: () => context.go(d.path),
+            // Scrolleable para que el header no desborde en anchos apenas
+            // mayores al breakpoint (700-750px).
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final (i, d)
+                        in ScaffoldWithNav._destinations.indexed)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: _NavButton(
+                          label: d.label,
+                          icon: selectedIndex == i ? d.selectedIcon : d.icon,
+                          selected: selectedIndex == i,
+                          onTap: () => context.go(d.path),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            const Spacer(),
+            ),
           ],
         ),
       ),

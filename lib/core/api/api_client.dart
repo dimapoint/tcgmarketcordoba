@@ -67,7 +67,15 @@ class ApiClient {
     await _setSession(_sessionFromJson(body));
   }
 
-  Future<bool> _refresh() async {
+  Future<bool>? _refreshInFlight;
+
+  // Los refresh tokens son de un solo uso (rotación): dos refresh
+  // concurrentes con el mismo token deslogueaban al usuario. Se comparte
+  // un único refresh en vuelo entre todos los 401 simultáneos.
+  Future<bool> _refresh() => _refreshInFlight ??=
+      _doRefresh().whenComplete(() => _refreshInFlight = null);
+
+  Future<bool> _doRefresh() async {
     final current = _session;
     if (current == null) return false;
     final res = await _http.post(
@@ -147,14 +155,20 @@ class ApiClient {
     String path, {
     required String filePath,
     Map<String, String> fields = const {},
+    bool retried = false,
   }) async {
     final s = _session;
     if (s == null) throw ApiException(401, 'No hay sesión activa');
+    // Un MultipartRequest finalizado no se puede reenviar: el reintento
+    // reconstruye el request desde cero.
     final req = http.MultipartRequest('POST', Uri.parse('$baseUrl$path'))
       ..headers['Authorization'] = 'Bearer ${s.accessToken}'
       ..fields.addAll(fields)
       ..files.add(await http.MultipartFile.fromPath('file', filePath));
     final res = await http.Response.fromStream(await _http.send(req));
+    if (res.statusCode == 401 && !retried && await _refresh()) {
+      return uploadFile(path, filePath: filePath, fields: fields, retried: true);
+    }
     return _decode(res);
   }
 

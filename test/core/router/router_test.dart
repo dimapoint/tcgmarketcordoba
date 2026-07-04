@@ -1,8 +1,45 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tcgmarketcordoba/core/api/api_client.dart';
+import 'package:tcgmarketcordoba/core/api/api_provider.dart';
+import 'package:tcgmarketcordoba/core/api/token_store.dart';
+import 'package:tcgmarketcordoba/core/router/router.dart';
 import 'package:tcgmarketcordoba/features/auth/auth_provider.dart';
 
+Map<String, dynamic> _authBody(String at, String rt) => {
+      'access_token': at,
+      'refresh_token': rt,
+      'user': {'id': 'u1', 'email': 'a@b.com'},
+    };
+
+const _sessionPrefs = {
+  'auth.access_token': 'at1',
+  'auth.refresh_token': 'rt1',
+  'auth.user_id': 'u1',
+  'auth.email': 'a@b.com',
+};
+
+MockClient _mockApi() => MockClient((req) async {
+      if (req.url.path == '/auth/signin') {
+        return http.Response(jsonEncode(_authBody('at1', 'rt1')), 200);
+      }
+      return http.Response(jsonEncode([]), 200);
+    });
+
+Future<ApiClient> _apiClient() async {
+  final prefs = await SharedPreferences.getInstance();
+  return ApiClient(
+      baseUrl: 'http://x', tokens: TokenStore(prefs), httpClient: _mockApi());
+}
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('authSessionProvider returns null session when logged out', () async {
     final container = ProviderContainer(
       overrides: [
@@ -12,5 +49,185 @@ void main() {
     addTearDown(container.dispose);
     final session = await container.read(authSessionProvider.future);
     expect(session, isNull);
+  });
+
+  group('computeRedirect', () {
+    test('deslogueado en ruta protegida -> sign-in con from', () {
+      final r = computeRedirect(
+        loggedIn: false,
+        uri: Uri.parse('/post'),
+        matchedLocation: '/post',
+      );
+      final uri = Uri.parse(r!);
+      expect(uri.path, '/sign-in');
+      expect(uri.queryParameters['from'], '/post');
+    });
+
+    test('deslogueado en rutas públicas -> null', () {
+      for (final loc in ['/', '/listings/abc', '/sign-in', '/sign-up']) {
+        expect(
+          computeRedirect(
+              loggedIn: false, uri: Uri.parse(loc), matchedLocation: loc),
+          isNull,
+          reason: loc,
+        );
+      }
+    });
+
+    test('logueado en sign-in con from -> vuelve a from', () {
+      expect(
+        computeRedirect(
+          loggedIn: true,
+          uri: Uri.parse('/sign-in?from=%2Fpost'),
+          matchedLocation: '/sign-in',
+        ),
+        '/post',
+      );
+    });
+
+    test('logueado en sign-in sin from -> home', () {
+      expect(
+        computeRedirect(
+          loggedIn: true,
+          uri: Uri.parse('/sign-in'),
+          matchedLocation: '/sign-in',
+        ),
+        '/',
+      );
+    });
+
+    test('logueado en sign-up con from -> vuelve a from', () {
+      expect(
+        computeRedirect(
+          loggedIn: true,
+          uri: Uri.parse('/sign-up?from=%2Fmy-listings'),
+          matchedLocation: '/sign-up',
+        ),
+        '/my-listings',
+      );
+    });
+
+    test('logueado en ruta protegida -> null', () {
+      expect(
+        computeRedirect(
+          loggedIn: true,
+          uri: Uri.parse('/post'),
+          matchedLocation: '/post',
+        ),
+        isNull,
+      );
+    });
+
+    test('from inseguro se descarta', () {
+      for (final from in ['https://evil.com', '//evil.com', '/sign-in']) {
+        expect(
+          computeRedirect(
+            loggedIn: true,
+            uri: Uri(path: '/sign-in', queryParameters: {'from': from}),
+            matchedLocation: '/sign-in',
+          ),
+          '/',
+          reason: from,
+        );
+      }
+    });
+  });
+
+  group('routerProvider', () {
+    testWidgets('el router es estable ante cambios de sesión',
+        (tester) async {
+      SharedPreferences.setMockInitialValues(Map.of(_sessionPrefs));
+      final api = await _apiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(api)],
+      );
+      addTearDown(container.dispose);
+
+      final router1 = container.read(routerProvider);
+      await api.signOut();
+      await tester.pump();
+      final router2 = container.read(routerProvider);
+
+      expect(identical(router1, router2), isTrue);
+    });
+
+    testWidgets('deslogueado: /post redirige a sign-in y el login vuelve a /post',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final api = await _apiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(api)],
+      );
+      addTearDown(container.dispose);
+      final router = container.read(routerProvider);
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      await tester.pumpAndSettle();
+
+      router.go('/post');
+      await tester.pumpAndSettle();
+      final atSignIn = router.routerDelegate.currentConfiguration.uri;
+      expect(atSignIn.path, '/sign-in');
+      expect(atSignIn.queryParameters['from'], '/post');
+
+      await api.signIn(email: 'a@b.com', password: 'password1');
+      await tester.pumpAndSettle();
+      expect(
+        router.routerDelegate.currentConfiguration.uri.path,
+        '/post',
+      );
+    });
+
+    testWidgets('sesión persistida: entra directo a /post sin rebote',
+        (tester) async {
+      SharedPreferences.setMockInitialValues(Map.of(_sessionPrefs));
+      final api = await _apiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(api)],
+      );
+      addTearDown(container.dispose);
+      final router = container.read(routerProvider);
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      await tester.pumpAndSettle();
+
+      router.go('/post');
+      await tester.pumpAndSettle();
+      expect(
+        router.routerDelegate.currentConfiguration.uri.path,
+        '/post',
+      );
+    });
+
+    testWidgets('signOut en ruta protegida expulsa a sign-in',
+        (tester) async {
+      SharedPreferences.setMockInitialValues(Map.of(_sessionPrefs));
+      final api = await _apiClient();
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(api)],
+      );
+      addTearDown(container.dispose);
+      final router = container.read(routerProvider);
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      router.go('/post');
+      await tester.pumpAndSettle();
+
+      await api.signOut();
+      await tester.pumpAndSettle();
+      expect(
+        router.routerDelegate.currentConfiguration.uri.path,
+        '/sign-in',
+      );
+    });
   });
 }

@@ -27,14 +27,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authActionsProvider);
 
+    // El signup deja la sesión iniciada (el backend devuelve tokens); el
+    // redirect del router se encarga de llevar al usuario a donde iba.
     ref.listen(authActionsProvider, (_, next) {
       if (next.hasValue && !next.isLoading) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cuenta creada. Revisá tu email para confirmar.'),
-          ),
+          const SnackBar(content: Text('Cuenta creada. ¡Bienvenido!')),
         );
-        context.go('/sign-in');
       }
     });
 
@@ -83,7 +82,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   : const Text('Registrarse'),
             ),
             TextButton(
-              onPressed: () => context.go('/sign-in'),
+              onPressed: () {
+                final from =
+                    GoRouterState.of(context).uri.queryParameters['from'];
+                context.go(Uri(
+                  path: '/sign-in',
+                  queryParameters: from == null ? null : {'from': from},
+                ).toString());
+              },
               child: const Text('¿Ya tenés cuenta? Iniciá sesión'),
             ),
           ],

@@ -1,6 +1,7 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../features/auth/auth_provider.dart';
 import '../../features/auth/screens/sign_in_screen.dart';
 import '../../features/auth/screens/sign_up_screen.dart';
 import '../../features/browse/screens/browse_screen.dart';
@@ -9,21 +10,68 @@ import '../../features/my_listings/screens/my_listings_screen.dart';
 import '../../features/post_listing/screens/post_listing_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../shared/widgets/scaffold_with_nav.dart';
+import '../api/api_provider.dart';
+
+/// Puentea el stream de sesión del ApiClient a un Listenable para que
+/// GoRouter re-evalúe el redirect sin recrear el router.
+class SessionRefreshNotifier extends ChangeNotifier {
+  late final StreamSubscription<dynamic> _sub;
+  SessionRefreshNotifier(Stream<dynamic> stream) {
+    _sub = stream.listen((_) => notifyListeners());
+  }
+
+  @override
+  void dispose() {
+    _sub.cancel();
+    super.dispose();
+  }
+}
+
+const _protectedPrefixes = ['/post', '/my-listings', '/profile'];
+
+/// Decisión de redirect pura, testeable sin widgets.
+@visibleForTesting
+String? computeRedirect({
+  required bool loggedIn,
+  required Uri uri,
+  required String matchedLocation,
+}) {
+  final isProtected =
+      _protectedPrefixes.any((r) => matchedLocation.startsWith(r));
+  final isAuthRoute =
+      matchedLocation == '/sign-in' || matchedLocation == '/sign-up';
+
+  if (isProtected && !loggedIn) {
+    return Uri(path: '/sign-in', queryParameters: {'from': uri.toString()})
+        .toString();
+  }
+  if (isAuthRoute && loggedIn) {
+    final from = uri.queryParameters['from'];
+    final safe = from != null &&
+        from.startsWith('/') &&
+        !from.startsWith('//') &&
+        !from.startsWith('/sign-');
+    return safe ? from : '/';
+  }
+  return null;
+}
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final sessionAsync = ref.watch(authSessionProvider);
+  // apiClientProvider se overridea con un valor fijo en main.dart, así que
+  // este Provider corre una sola vez: un único GoRouter por sesión de app.
+  final api = ref.watch(apiClientProvider);
+  final refresh = SessionRefreshNotifier(api.onSessionChange);
+  ref.onDispose(refresh.dispose);
 
   return GoRouter(
     initialLocation: '/',
-    redirect: (context, state) {
-      final isLoggedIn = sessionAsync.valueOrNull != null;
-      final protectedRoutes = ['/post', '/my-listings', '/profile'];
-      final isProtected =
-          protectedRoutes.any((r) => state.matchedLocation.startsWith(r));
-
-      if (isProtected && !isLoggedIn) return '/sign-in';
-      return null;
-    },
+    refreshListenable: refresh,
+    redirect: (context, state) => computeRedirect(
+      // Lectura sincrónica: nunca hay estado "cargando" ambiguo.
+      loggedIn: api.session != null,
+      uri: state.uri,
+      matchedLocation: state.matchedLocation,
+    ),
     routes: [
       ShellRoute(
         builder: (context, state, child) => ScaffoldWithNav(child: child),

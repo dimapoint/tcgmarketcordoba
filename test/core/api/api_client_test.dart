@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -59,6 +60,80 @@ void main() {
 
     expect(result, isA<List>());
     expect(calls, ['/me/listings', '/auth/refresh', '/me/listings']);
+    expect(api.session?.accessToken, 'at-nuevo');
+  });
+
+  test('concurrent 401s share a single refresh (token de un solo uso)',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'auth.access_token': 'viejo',
+      'auth.refresh_token': 'rt-viejo',
+      'auth.user_id': 'u1',
+      'auth.email': 'a@b.com',
+    });
+    final prefs = await SharedPreferences.getInstance();
+    var refreshCalls = 0;
+    final mock = MockClient((req) async {
+      if (req.url.path == '/auth/refresh') {
+        refreshCalls++;
+        final body = jsonDecode(req.body) as Map<String, dynamic>;
+        // Simula el backend: el refresh token se consume en el primer uso.
+        if (refreshCalls > 1 || body['refresh_token'] != 'rt-viejo') {
+          return http.Response(
+              jsonEncode({'error': 'refresh token inválido'}), 401);
+        }
+        return http.Response(jsonEncode(_authBody('at-nuevo', 'rt-nuevo')), 200);
+      }
+      if (req.headers['Authorization'] == 'Bearer viejo') {
+        return http.Response(jsonEncode({'error': 'token inválido'}), 401);
+      }
+      return http.Response(jsonEncode([]), 200);
+    });
+
+    final api = ApiClient(
+        baseUrl: 'http://x', tokens: TokenStore(prefs), httpClient: mock);
+    final results = await Future.wait([
+      api.get('/me/listings', auth: true),
+      api.get('/me/contact-methods', auth: true),
+    ]);
+
+    expect(refreshCalls, 1);
+    expect(results, everyElement(isA<List>()));
+    expect(api.session, isNotNull);
+    expect(api.session?.accessToken, 'at-nuevo');
+  });
+
+  test('uploadFile con 401 refresca y reintenta', () async {
+    SharedPreferences.setMockInitialValues({
+      'auth.access_token': 'viejo',
+      'auth.refresh_token': 'rt-viejo',
+      'auth.user_id': 'u1',
+      'auth.email': 'a@b.com',
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final tmp = File(
+        '${Directory.systemTemp.path}${Platform.pathSeparator}upload_test.jpg')
+      ..writeAsStringSync('x');
+    addTearDown(() => tmp.deleteSync());
+
+    var calls = <String>[];
+    final mock = MockClient((req) async {
+      calls.add(req.url.path);
+      if (req.url.path == '/auth/refresh') {
+        return http.Response(jsonEncode(_authBody('at-nuevo', 'rt-nuevo')), 200);
+      }
+      if (req.headers['Authorization'] == 'Bearer viejo') {
+        return http.Response(jsonEncode({'error': 'token inválido'}), 401);
+      }
+      return http.Response(jsonEncode({'url': 'http://x/foto.jpg'}), 200);
+    });
+
+    final api = ApiClient(
+        baseUrl: 'http://x', tokens: TokenStore(prefs), httpClient: mock);
+    final result = await api.uploadFile('/photos', filePath: tmp.path);
+
+    expect(calls, ['/photos', '/auth/refresh', '/photos']);
+    expect(result, {'url': 'http://x/foto.jpg'});
     expect(api.session?.accessToken, 'at-nuevo');
   });
 

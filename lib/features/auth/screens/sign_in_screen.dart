@@ -25,11 +25,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // La navegación post-login la hace el redirect del router al emitirse
+    // la nueva sesión (refreshListenable): no hace falta context.go acá.
     final authState = ref.watch(authActionsProvider);
-
-    ref.listen(authActionsProvider, (_, next) {
-      if (next.hasValue && !next.isLoading) context.go('/');
-    });
 
     return AuthShell(
       title: 'Iniciar sesión',
@@ -76,7 +74,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   : const Text('Entrar'),
             ),
             TextButton(
-              onPressed: () => context.go('/sign-up'),
+              onPressed: () {
+                final from =
+                    GoRouterState.of(context).uri.queryParameters['from'];
+                context.go(Uri(
+                  path: '/sign-up',
+                  queryParameters: from == null ? null : {'from': from},
+                ).toString());
+              },
               child: const Text('¿No tenés cuenta? Registrate'),
             ),
           ],
