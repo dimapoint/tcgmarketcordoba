@@ -7,7 +7,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/empty_state.dart';
-import '../../profile/profile_provider.dart';
 import '../photo_repository.dart';
 import '../post_listing_provider.dart';
 import '../post_listing_repository.dart';
@@ -340,12 +339,6 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
 
   @override
   Widget build(BuildContext context) {
-    final form = ref.watch(postListingFormProvider);
-    final citiesAsync = ref.watch(citiesProvider);
-    final profileCityId =
-        ref.watch(profileProvider).valueOrNull?.cityId;
-    final selectedCityId = form.cityId ?? profileCityId;
-
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -390,29 +383,6 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
                 .read(postListingFormProvider.notifier)
                 .setDescription(v.isEmpty ? null : v),
           ),
-          const SizedBox(height: 16),
-          citiesAsync.when(
-            loading: () => const LinearProgressIndicator(),
-            error: (e, _) => Text('Error cargando ciudades: $e'),
-            data: (cities) => DropdownButtonFormField<String>(
-              // key fuerza rebuild cuando la ciudad del perfil llega tarde
-              key: ValueKey(selectedCityId),
-              initialValue:
-                  cities.any((c) => c.id == selectedCityId)
-                      ? selectedCityId
-                      : null,
-              decoration: const InputDecoration(labelText: 'Ciudad'),
-              items: [
-                for (final c in cities)
-                  DropdownMenuItem(value: c.id, child: Text(c.name)),
-              ],
-              onChanged: (v) {
-                if (v != null) {
-                  ref.read(postListingFormProvider.notifier).setCityId(v);
-                }
-              },
-            ),
-          ),
           const Spacer(),
           Row(children: [
             OutlinedButton(
@@ -420,11 +390,10 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton(
-                onPressed: (_condition != null &&
-                        _priceCtrl.text.isNotEmpty &&
-                        selectedCityId != null)
-                    ? widget.onNext
-                    : null,
+                onPressed:
+                    (_condition != null && _priceCtrl.text.isNotEmpty)
+                        ? widget.onNext
+                        : null,
                 child: const Text('Siguiente'),
               ),
             ),

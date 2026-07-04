@@ -68,11 +68,16 @@ func (h *Handler) PutContact(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusBadRequest, "cuerpo inválido")
 		return
 	}
-	if !validContactTypes[b.Type] || strings.TrimSpace(b.Value) == "" {
-		httpx.Error(w, http.StatusUnprocessableEntity, "tipo o valor de contacto inválido")
+	if !validContactTypes[b.Type] {
+		httpx.Error(w, http.StatusUnprocessableEntity, "tipo de contacto inválido")
 		return
 	}
-	if err := h.Store.UpsertContact(r.Context(), auth.UserID(r.Context()), b.Type, b.Value); err != nil {
+	value, err := normalizeContact(b.Type, b.Value)
+	if err != nil {
+		httpx.Error(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	if err := h.Store.UpsertContact(r.Context(), auth.UserID(r.Context()), b.Type, value); err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "error interno")
 		return
 	}

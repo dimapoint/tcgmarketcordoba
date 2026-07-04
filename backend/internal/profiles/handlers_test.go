@@ -90,6 +90,25 @@ func TestPutContactRejectsInvalidType(t *testing.T) {
 	}
 }
 
+func TestPutContactRejectsInvalidWhatsapp(t *testing.T) {
+	h := &Handler{Store: &fakeStore{}}
+	rec := serveAuthed(h.PutContact,
+		authedRequest("PUT", "/me/contacts", `{"type":"whatsapp","value":"no soy un numero"}`))
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("code = %d, want 422: %s", rec.Code, rec.Body)
+	}
+}
+
+func TestPutContactNormalizesInstagramHandle(t *testing.T) {
+	store := &fakeStore{}
+	h := &Handler{Store: store}
+	rec := serveAuthed(h.PutContact,
+		authedRequest("PUT", "/me/contacts", `{"type":"instagram","value":"@mi.usuario"}`))
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("code = %d, want 204: %s", rec.Code, rec.Body)
+	}
+}
+
 func TestSellerContactsIsPublic(t *testing.T) {
 	h := &Handler{Store: &fakeStore{contacts: []ContactMethod{
 		{ID: "c1", Type: "whatsapp", Value: "+549351"},

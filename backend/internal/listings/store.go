@@ -126,7 +126,20 @@ func (s *PgStore) Create(ctx context.Context, p CreateParams) (Listing, error) {
 		cityID = fromProfile
 	}
 	if cityID == nil {
-		return Listing{}, ErrNoCity
+		// La app es solo de Córdoba: si ni el request ni el perfil traen
+		// ciudad, se usa Córdoba por default en vez de exigirle al
+		// vendedor que configure una.
+		var cordobaID string
+		err := s.pool.QueryRow(ctx,
+			`SELECT id FROM cities WHERE name = 'Córdoba' LIMIT 1`,
+		).Scan(&cordobaID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Listing{}, ErrNoCity
+		}
+		if err != nil {
+			return Listing{}, err
+		}
+		cityID = &cordobaID
 	}
 
 	var id string

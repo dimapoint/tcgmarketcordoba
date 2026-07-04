@@ -81,7 +81,7 @@ que una pestaña se conecta).
 ## Test
 
 ```powershell
-flutter test          # 24 tests, todos verdes (~20 s)
+flutter test          # 26 tests, todos verdes (~20 s)
 cd backend; go test ./...
 ```
 

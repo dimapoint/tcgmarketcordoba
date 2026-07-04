@@ -119,34 +119,6 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                ref.watch(citiesProvider).when(
-                      loading: () => const LinearProgressIndicator(),
-                      error: (e, _) => Text('Error cargando ciudades: $e'),
-                      data: (cities) => DropdownButtonFormField<String>(
-                        initialValue: cities
-                                .any((c) => c.id == widget.profile.cityId)
-                            ? widget.profile.cityId
-                            : null,
-                        decoration: const InputDecoration(
-                          labelText: 'Ciudad',
-                          helperText:
-                              'Se usa como ubicación de tus publicaciones.',
-                        ),
-                        items: [
-                          for (final c in cities)
-                            DropdownMenuItem(
-                                value: c.id, child: Text(c.name)),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) {
-                            ref
-                                .read(profileActionsProvider.notifier)
-                                .updateCity(v);
-                          }
-                        },
-                      ),
-                    ),
               ],
             ),
           ),
@@ -221,47 +193,64 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
   void _showAddContactDialog(BuildContext context) {
     String type = 'whatsapp';
     final valueCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    String? submitError;
 
     showDialog<void>(
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Agregar contacto'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                initialValue: type,
-                decoration: const InputDecoration(labelText: 'Tipo'),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'whatsapp',
-                    child: Text('WhatsApp'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: type,
+                  decoration: const InputDecoration(labelText: 'Tipo'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'whatsapp',
+                      child: Text('WhatsApp'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'instagram',
+                      child: Text('Instagram'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'email',
+                      child: Text('Email'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'telegram',
+                      child: Text('Telegram'),
+                    ),
+                  ],
+                  onChanged: (v) => setDialogState(() {
+                    type = v!;
+                    submitError = null;
+                  }),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: valueCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Valor',
+                    hintText: 'Número, usuario, etc.',
                   ),
-                  DropdownMenuItem(
-                    value: 'instagram',
-                    child: Text('Instagram'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'email',
-                    child: Text('Email'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'telegram',
-                    child: Text('Telegram'),
+                  validator: (v) => _validateContactValue(type, v),
+                ),
+                if (submitError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    submitError!,
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.error),
                   ),
                 ],
-                onChanged: (v) => setDialogState(() => type = v!),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: valueCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Valor',
-                  hintText: 'Número, usuario, etc.',
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -269,12 +258,18 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () {
-                ref.read(profileActionsProvider.notifier).upsertContact(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+                await ref.read(profileActionsProvider.notifier).upsertContact(
                       type,
                       valueCtrl.text.trim(),
                     );
-                Navigator.pop(context);
+                final state = ref.read(profileActionsProvider);
+                if (state.hasError) {
+                  setDialogState(() => submitError = state.error.toString());
+                  return;
+                }
+                if (context.mounted) Navigator.pop(context);
               },
               child: const Text('Guardar'),
             ),
@@ -282,5 +277,36 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
         ),
       ),
     );
+  }
+}
+
+/// Validación rápida en el cliente, en espejo de las reglas del backend
+/// (`backend/internal/profiles/contact_validation.go`) para dar feedback
+/// inmediato — el backend sigue siendo la fuente de verdad.
+String? _validateContactValue(String type, String? value) {
+  final v = (value ?? '').trim();
+  if (v.isEmpty) return 'Campo requerido';
+  switch (type) {
+    case 'whatsapp':
+      final digits = v.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
+      return RegExp(r'^\+?[0-9]{8,15}$').hasMatch(digits)
+          ? null
+          : 'Número de WhatsApp inválido';
+    case 'instagram':
+      final handle = v.replaceFirst(RegExp(r'^@'), '');
+      return RegExp(r'^[A-Za-z0-9._]{1,30}$').hasMatch(handle)
+          ? null
+          : 'Usuario de Instagram inválido';
+    case 'telegram':
+      final handle = v.replaceFirst(RegExp(r'^@'), '');
+      return RegExp(r'^[A-Za-z][A-Za-z0-9_]{4,31}$').hasMatch(handle)
+          ? null
+          : 'Usuario de Telegram inválido';
+    case 'email':
+      return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v)
+          ? null
+          : 'Email inválido';
+    default:
+      return null;
   }
 }
