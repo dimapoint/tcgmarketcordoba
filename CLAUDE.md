@@ -40,7 +40,7 @@ Docker: `docker compose up --build` (uses `backend/.env`).
 
 - Module `tcgmarketcordoba`, stdlib `net/http` mux (Go 1.22+ patterns like `GET /listings/{id}`), no framework.
 - Feature packages under `internal/`: `auth`, `listings`, `cards`, `profiles`, `photos`. Each has a `Store` interface (pgx implementation) and handlers unit-tested against fake stores.
-- `internal/config` loads env (+ local `backend/.env`); `internal/httpx` has JSON/error/CORS helpers.
+- `internal/config` loads env (+ local `backend/.env`); `internal/db` wires the pgx pool (`DATABASE_URL`); `internal/httpx` has JSON/error/CORS helpers.
 - Auth: HS256 access token (15 min, subject = user id) + rotating refresh tokens (SHA-256-hashed in `refresh_tokens`, 30 days). Passwords bcrypt. Signup creates the `profiles` row (username = email local part).
 - Photos: multipart upload proxied to Supabase Storage REST with the service role key (`internal/photos/storage.go`); swap to S3/R2 = replace that one struct.
 - API errors are `{"error": "<mensaje>"}` with user-facing messages **in Spanish**.
