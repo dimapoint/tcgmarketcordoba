@@ -61,19 +61,27 @@ GoRouter usa hash strategy, el `#` es necesario.
 ## Run (human path)
 
 ```powershell
+./dev.ps1    # backend + flutter run -d web-server con hot reload en :5003
+             # r = hot reload | R = hot restart | q = salir (baja el backend)
+```
+
+Internamente usa `driver.ps1 start -BackendOnly` y al salir hace `stop`.
+Alternativa manual (release-like, sin hot reload):
+
+```powershell
 cd backend; go run .                                  # terminal 1
 python -m http.server 5003 --directory build/web      # terminal 2
 # abrir http://localhost:5003 — Ctrl-C para frenar
 ```
 
-`flutter run -d chrome` falla si Chrome ya está abierto;
-`flutter run -d web-server` no ejecuta Dart sin la extensión Dart Debug.
-Por eso se usa build estático + http.server.
+`flutter run -d chrome` falla si Chrome ya está abierto; con
+`-d web-server` hay que abrir el browser a mano (no ejecuta Dart hasta
+que una pestaña se conecta).
 
 ## Test
 
 ```powershell
-flutter test          # 11 tests, todos verdes (~15 s)
+flutter test          # 24 tests, todos verdes (~20 s)
 cd backend; go test ./...
 ```
 

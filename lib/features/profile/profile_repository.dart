@@ -9,6 +9,7 @@ abstract class ProfileRepository {
   Future<List<ContactMethod>> fetchContactMethods(String userId);
   Future<void> upsertContactMethod(String userId, String type, String value);
   Future<void> deleteContactMethod(String id);
+  Future<List<City>> fetchCities();
 }
 
 class ApiProfileRepository implements ProfileRepository {
@@ -48,6 +49,14 @@ class ApiProfileRepository implements ProfileRepository {
   @override
   Future<void> deleteContactMethod(String id) =>
       _api.delete('/me/contacts/$id', auth: true);
+
+  @override
+  Future<List<City>> fetchCities() async {
+    final data = await _api.get('/cities');
+    return (data as List)
+        .map((j) => City.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
 }
 
 final profileRepositoryProvider = Provider<ProfileRepository>(

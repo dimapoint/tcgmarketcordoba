@@ -6,6 +6,7 @@ param(
   [ValidateSet('start', 'stop', 'smoke', 'shot', 'status')]
   [string]$Command = 'smoke',
   [switch]$Build,                       # start: fuerza rebuild de flutter web
+  [switch]$BackendOnly,                 # start: solo backend (dev.ps1 sirve la web)
   [string]$Url = 'http://localhost:5003',   # shot: URL a capturar
   [int]$Width = 1600,                   # shot: ancho de ventana
   [int]$Height = 900,                   # shot: alto de ventana
@@ -61,6 +62,11 @@ function Invoke-Start {
   }
   if (-not (Wait-Healthy)) { throw 'backend no respondió /health en 30s (¿backend/.env con DATABASE_URL?)' }
   Write-Host "backend: OK ($ApiUrl/health)"
+
+  if ($BackendOnly) {
+    Save-Pids $pids
+    return
+  }
 
   $indexHtml = Join-Path $RepoRoot 'build\web\index.html'
   if ($Build -or -not (Test-Path $indexHtml)) {

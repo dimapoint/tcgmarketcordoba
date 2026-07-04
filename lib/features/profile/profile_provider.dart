@@ -9,6 +9,11 @@ final profileProvider = FutureProvider.autoDispose<Profile?>((ref) async {
   return ref.watch(profileRepositoryProvider).fetchProfile(session.user.id);
 });
 
+// Lista de ciudades de referencia (endpoint público, cambia poco).
+final citiesProvider = FutureProvider<List<City>>((ref) {
+  return ref.watch(profileRepositoryProvider).fetchCities();
+});
+
 final contactMethodsProvider =
     FutureProvider.autoDispose<List<ContactMethod>>((ref) async {
   final session = await ref.watch(authSessionProvider.future);
@@ -30,6 +35,19 @@ class ProfileActionsNotifier extends AsyncNotifier<void> {
       () => ref.read(profileRepositoryProvider).updateProfile(
             session.user.id,
             username: username,
+          ),
+    );
+    ref.invalidate(profileProvider);
+  }
+
+  Future<void> updateCity(String cityId) async {
+    final session = ref.read(authSessionProvider).valueOrNull;
+    if (session == null) return;
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref.read(profileRepositoryProvider).updateProfile(
+            session.user.id,
+            cityId: cityId,
           ),
     );
     ref.invalidate(profileProvider);

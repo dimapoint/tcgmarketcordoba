@@ -27,18 +27,33 @@ void main() {
     expect(container.read(postListingFormProvider).isValid, isFalse);
   });
 
-  test('form is invalid when no photos selected', () {
+  test('form is valid without photos (las fotos son opcionales)', () {
     final notifier = container.read(postListingFormProvider.notifier);
     notifier.setCardPrinting(const CardPrinting(
       id: '1',
       cardId: '1',
       cardName: 'Jinx',
       setName: 'Origins',
-      setCode: 'ORI',
+      setCode: 'OGN',
       cardNumber: '001',
       isFoil: false,
     ));
     notifier.setCondition('NM');
+    notifier.setPrice(100);
+    expect(container.read(postListingFormProvider).isValid, isTrue);
+  });
+
+  test('form is invalid without condition', () {
+    final notifier = container.read(postListingFormProvider.notifier);
+    notifier.setCardPrinting(const CardPrinting(
+      id: '1',
+      cardId: '1',
+      cardName: 'Jinx',
+      setName: 'Origins',
+      setCode: 'OGN',
+      cardNumber: '001',
+      isFoil: false,
+    ));
     notifier.setPrice(100);
     expect(container.read(postListingFormProvider).isValid, isFalse);
   });

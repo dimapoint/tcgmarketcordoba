@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../profile/profile_provider.dart';
 import '../photo_repository.dart';
 import '../post_listing_provider.dart';
 import '../post_listing_repository.dart';
@@ -322,12 +323,12 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
   final _descCtrl = TextEditingController();
   String? _condition;
 
+  // Opciones simples para el vendedor; se guardan como el enum
+  // card_condition de la DB (que también admite LP y D en datos viejos).
   static const _conditionNames = {
-    'NM': 'Near Mint',
-    'LP': 'Lightly Played',
-    'MP': 'Moderately Played',
-    'HP': 'Heavily Played',
-    'D': 'Damaged',
+    'NM': 'Nueva',
+    'MP': 'Jugada',
+    'HP': 'Muy usada',
   };
 
   @override
@@ -339,6 +340,12 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
 
   @override
   Widget build(BuildContext context) {
+    final form = ref.watch(postListingFormProvider);
+    final citiesAsync = ref.watch(citiesProvider);
+    final profileCityId =
+        ref.watch(profileProvider).valueOrNull?.cityId;
+    final selectedCityId = form.cityId ?? profileCityId;
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -351,7 +358,7 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
             runSpacing: 8,
             children: _conditionNames.entries
                 .map((e) => ChoiceChip(
-                      label: Text('${e.key} · ${e.value}'),
+                      label: Text(e.value),
                       selected: _condition == e.key,
                       onSelected: (_) {
                         setState(() => _condition = e.key);
@@ -383,6 +390,29 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
                 .read(postListingFormProvider.notifier)
                 .setDescription(v.isEmpty ? null : v),
           ),
+          const SizedBox(height: 16),
+          citiesAsync.when(
+            loading: () => const LinearProgressIndicator(),
+            error: (e, _) => Text('Error cargando ciudades: $e'),
+            data: (cities) => DropdownButtonFormField<String>(
+              // key fuerza rebuild cuando la ciudad del perfil llega tarde
+              key: ValueKey(selectedCityId),
+              initialValue:
+                  cities.any((c) => c.id == selectedCityId)
+                      ? selectedCityId
+                      : null,
+              decoration: const InputDecoration(labelText: 'Ciudad'),
+              items: [
+                for (final c in cities)
+                  DropdownMenuItem(value: c.id, child: Text(c.name)),
+              ],
+              onChanged: (v) {
+                if (v != null) {
+                  ref.read(postListingFormProvider.notifier).setCityId(v);
+                }
+              },
+            ),
+          ),
           const Spacer(),
           Row(children: [
             OutlinedButton(
@@ -390,7 +420,9 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton(
-                onPressed: (_condition != null && _priceCtrl.text.isNotEmpty)
+                onPressed: (_condition != null &&
+                        _priceCtrl.text.isNotEmpty &&
+                        selectedCityId != null)
                     ? widget.onNext
                     : null,
                 child: const Text('Siguiente'),
@@ -448,7 +480,7 @@ class _PhotoStepState extends ConsumerState<_PhotoStep> {
           Text('Fotos', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
           Text(
-            'Mínimo 1, máximo 3. La primera es la portada.',
+            'Opcional, hasta 3. La primera es la portada.',
             style: Theme.of(context)
                 .textTheme
                 .bodySmall

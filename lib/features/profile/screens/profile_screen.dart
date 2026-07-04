@@ -119,6 +119,34 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                ref.watch(citiesProvider).when(
+                      loading: () => const LinearProgressIndicator(),
+                      error: (e, _) => Text('Error cargando ciudades: $e'),
+                      data: (cities) => DropdownButtonFormField<String>(
+                        initialValue: cities
+                                .any((c) => c.id == widget.profile.cityId)
+                            ? widget.profile.cityId
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Ciudad',
+                          helperText:
+                              'Se usa como ubicación de tus publicaciones.',
+                        ),
+                        items: [
+                          for (final c in cities)
+                            DropdownMenuItem(
+                                value: c.id, child: Text(c.name)),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) {
+                            ref
+                                .read(profileActionsProvider.notifier)
+                                .updateCity(v);
+                          }
+                        },
+                      ),
+                    ),
               ],
             ),
           ),

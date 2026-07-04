@@ -19,6 +19,18 @@ class Profile {
       );
 }
 
+class City {
+  final String id;
+  final String name;
+
+  const City({required this.id, required this.name});
+
+  factory City.fromJson(Map<String, dynamic> j) => City(
+        id: j['id'] as String,
+        name: j['name'] as String,
+      );
+}
+
 class ContactMethod {
   final String id;
   final String type;

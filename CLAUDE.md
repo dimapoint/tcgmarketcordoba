@@ -12,6 +12,14 @@ The Flutter app talks **only** to the Go API (`API_URL` in root `.env`). Supabas
 
 ## Commands
 
+### Dev local (todo junto)
+
+```powershell
+./dev.ps1                # backend Go (:8080) + Flutter web con hot reload (:5003); q para salir
+```
+
+Para una corrida release-like + smoke E2E: `pwsh .claude/skills/run-tcgmarketcordoba/driver.ps1 start|smoke|stop` (ver skill `run-tcgmarketcordoba`).
+
 ### Flutter (frontend)
 
 ```bash
