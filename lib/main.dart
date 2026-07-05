@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/api/api_client.dart';
 import 'core/api/api_provider.dart';
 import 'core/api/token_store.dart';
+import 'core/onboarding/onboarding_provider.dart';
+import 'core/onboarding/onboarding_store.dart';
 import 'core/router/router.dart';
 import 'core/theme/app_theme.dart';
 
@@ -17,9 +19,13 @@ Future<void> main() async {
     baseUrl: dotenv.env['API_URL']!,
     tokens: TokenStore(prefs),
   );
+  final onboardingStore = OnboardingStore(prefs);
 
   runApp(ProviderScope(
-    overrides: [apiClientProvider.overrideWithValue(api)],
+    overrides: [
+      apiClientProvider.overrideWithValue(api),
+      onboardingStoreProvider.overrideWithValue(onboardingStore),
+    ],
     child: const App(),
   ));
 }

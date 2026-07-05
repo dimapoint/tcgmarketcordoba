@@ -7,10 +7,13 @@ import '../../features/auth/screens/sign_up_screen.dart';
 import '../../features/browse/screens/browse_screen.dart';
 import '../../features/browse/screens/listing_detail_screen.dart';
 import '../../features/my_listings/screens/my_listings_screen.dart';
+import '../../features/onboarding/onboarding_content.dart';
+import '../../features/onboarding/screens/onboarding_screen.dart';
 import '../../features/post_listing/screens/post_listing_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../shared/widgets/scaffold_with_nav.dart';
 import '../api/api_provider.dart';
+import '../onboarding/onboarding_provider.dart';
 
 /// Puentea el stream de sesión del ApiClient a un Listenable para que
 /// GoRouter re-evalúe el redirect sin recrear el router.
@@ -33,6 +36,7 @@ const _protectedPrefixes = ['/post', '/my-listings', '/profile'];
 @visibleForTesting
 String? computeRedirect({
   required bool loggedIn,
+  required bool hasSeenOnboarding,
   required Uri uri,
   required String matchedLocation,
 }) {
@@ -40,10 +44,17 @@ String? computeRedirect({
       _protectedPrefixes.any((r) => matchedLocation.startsWith(r));
   final isAuthRoute =
       matchedLocation == '/sign-in' || matchedLocation == '/sign-up';
+  final onOnboarding = matchedLocation == '/onboarding';
 
   if (isProtected && !loggedIn) {
     return Uri(path: '/sign-in', queryParameters: {'from': uri.toString()})
         .toString();
+  }
+  if (loggedIn && !hasSeenOnboarding && !onOnboarding) {
+    return '/onboarding';
+  }
+  if (onOnboarding && (hasSeenOnboarding || !loggedIn)) {
+    return '/';
   }
   if (isAuthRoute && loggedIn) {
     final from = uri.queryParameters['from'];
@@ -60,6 +71,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   // apiClientProvider se overridea con un valor fijo en main.dart, así que
   // este Provider corre una sola vez: un único GoRouter por sesión de app.
   final api = ref.watch(apiClientProvider);
+  final onboarding = ref.watch(onboardingStoreProvider);
   final refresh = SessionRefreshNotifier(api.onSessionChange);
   ref.onDispose(refresh.dispose);
 
@@ -69,6 +81,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) => computeRedirect(
       // Lectura sincrónica: nunca hay estado "cargando" ambiguo.
       loggedIn: api.session != null,
+      hasSeenOnboarding:
+          onboarding.lastSeenVersion() >= kOnboardingLatestVersion,
       uri: state.uri,
       matchedLocation: state.matchedLocation,
     ),
@@ -86,8 +100,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/listings/:id',
         builder: (c, s) => ListingDetailScreen(id: s.pathParameters['id']!),
       ),
-      GoRoute(path: '/sign-in',  builder: (c, s) => const SignInScreen()),
-      GoRoute(path: '/sign-up',  builder: (c, s) => const SignUpScreen()),
+      GoRoute(path: '/sign-in',    builder: (c, s) => const SignInScreen()),
+      GoRoute(path: '/sign-up',    builder: (c, s) => const SignUpScreen()),
+      GoRoute(path: '/onboarding', builder: (c, s) => const OnboardingScreen()),
     ],
   );
 });
