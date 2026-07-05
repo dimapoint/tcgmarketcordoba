@@ -1,25 +1,22 @@
-import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/empty_state.dart';
-import '../photo_repository.dart';
-import '../post_listing_provider.dart';
-import '../post_listing_repository.dart';
 import '../../../shared/models/card_printing.dart';
+import '../../../shared/widgets/empty_state.dart';
+import '../post_wanted_provider.dart';
+import '../post_wanted_repository.dart';
 
-class PostListingScreen extends ConsumerStatefulWidget {
-  const PostListingScreen({super.key});
+class PostWantedScreen extends ConsumerStatefulWidget {
+  const PostWantedScreen({super.key});
 
   @override
-  ConsumerState<PostListingScreen> createState() => _PostListingScreenState();
+  ConsumerState<PostWantedScreen> createState() => _PostWantedScreenState();
 }
 
-class _PostListingScreenState extends ConsumerState<PostListingScreen> {
+class _PostWantedScreenState extends ConsumerState<PostWantedScreen> {
   int _step = 0;
 
   @override
@@ -39,7 +36,7 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Nueva publicación',
+                        'Publicar búsqueda',
                         style: Theme.of(context).textTheme.headlineSmall,
                       ),
                       const SizedBox(height: 16),
@@ -55,10 +52,6 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
                           onSelected: (_) => setState(() => _step = 1)),
                       _ConditionPriceStep(
                         onBack: () => setState(() => _step = 0),
-                        onNext: () => setState(() => _step = 2),
-                      ),
-                      _PhotoStep(
-                        onBack: () => setState(() => _step = 1),
                         onSubmit: _submit,
                       ),
                     ],
@@ -73,27 +66,18 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
   }
 
   Future<void> _submit() async {
-    final form = ref.read(postListingFormProvider);
+    final form = ref.read(postWantedFormProvider);
     if (!form.isValid) return;
 
     try {
-      final listingId =
-          await ref.read(postListingRepositoryProvider).createListing(
-                cardPrintingId: form.cardPrinting!.id,
-                condition: form.condition!,
-                price: form.price,
-                description: form.description,
-                cityId: form.cityId,
-              );
-
-      final photoRepo = ref.read(photoRepositoryProvider);
-      for (var i = 0; i < form.photoPaths.length; i++) {
-        await photoRepo.upload(
-          listingId: listingId,
-          file: File(form.photoPaths[i]),
-          order: i + 1,
-        );
-      }
+      await ref.read(postWantedRepositoryProvider).createWantedOrder(
+            cardPrintingId: form.cardPrinting!.id,
+            minCondition: form.minCondition,
+            maxPrice: form.maxPrice,
+            quantity: form.quantity,
+            description: form.description,
+            cityId: form.cityId,
+          );
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -101,12 +85,12 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
       return;
     }
 
-    ref.read(postListingFormProvider.notifier).reset();
+    ref.read(postWantedFormProvider.notifier).reset();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('¡Publicación creada!')),
+      const SnackBar(content: Text('¡Búsqueda publicada!')),
     );
-    context.go('/');
+    context.go('/wanted');
   }
 }
 
@@ -114,7 +98,7 @@ class _StepIndicator extends StatelessWidget {
   final int current;
   const _StepIndicator({required this.current});
 
-  static const _labels = ['Carta', 'Precio', 'Fotos'];
+  static const _labels = ['Carta', 'Detalles'];
 
   @override
   Widget build(BuildContext context) {
@@ -184,7 +168,7 @@ class _CardSearchStep extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final results = ref.watch(cardSearchResultsProvider);
+    final results = ref.watch(wantedCardSearchResultsProvider);
 
     return Column(
       children: [
@@ -193,7 +177,7 @@ class _CardSearchStep extends ConsumerWidget {
           child: SearchBar(
             hintText: 'Buscar carta (ej: Jinx)...',
             onChanged: (v) =>
-                ref.read(cardSearchQueryProvider.notifier).state = v,
+                ref.read(wantedCardSearchQueryProvider.notifier).state = v,
             leading: const Icon(Icons.search),
           ),
         ),
@@ -204,7 +188,7 @@ class _CardSearchStep extends ConsumerWidget {
             data: (items) => items.isEmpty
                 ? const EmptyState(
                     icon: Icons.search,
-                    message: 'Buscá la carta que querés vender',
+                    message: 'Buscá la carta que estás buscando',
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -214,7 +198,7 @@ class _CardSearchStep extends ConsumerWidget {
                       printing: items[i],
                       onTap: () {
                         ref
-                            .read(postListingFormProvider.notifier)
+                            .read(postWantedFormProvider.notifier)
                             .setCardPrinting(items[i]);
                         onSelected(items[i]);
                       },
@@ -273,7 +257,7 @@ class _CardResultTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-    Text(
+                    Text(
                       printing.cardName,
                       style: Theme.of(context).textTheme.titleMedium,
                       maxLines: 1,
@@ -288,19 +272,6 @@ class _CardResultTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (printing.wantedCount > 0) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        '${printing.wantedCount} '
-                        '${printing.wantedCount == 1 ? "persona busca" : "personas buscan"} esta carta',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -322,8 +293,8 @@ class _CardResultTile extends StatelessWidget {
 
 class _ConditionPriceStep extends ConsumerStatefulWidget {
   final VoidCallback onBack;
-  final VoidCallback onNext;
-  const _ConditionPriceStep({required this.onBack, required this.onNext});
+  final VoidCallback onSubmit;
+  const _ConditionPriceStep({required this.onBack, required this.onSubmit});
 
   @override
   ConsumerState<_ConditionPriceStep> createState() =>
@@ -332,58 +303,78 @@ class _ConditionPriceStep extends ConsumerStatefulWidget {
 
 class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
   final _priceCtrl = TextEditingController();
+  final _quantityCtrl = TextEditingController(text: '1');
   final _descCtrl = TextEditingController();
   String? _condition;
 
-  // Opciones simples para el vendedor; se guardan como el enum
-  // card_condition de la DB (que también admite LP y D en datos viejos).
   static const _conditionNames = {
-    'NM': 'Nueva',
-    'MP': 'Jugada',
-    'HP': 'Muy usada',
+    'NM': 'NM o mejor',
+    'MP': 'MP o mejor',
+    'HP': 'HP o mejor',
   };
 
   @override
   void dispose() {
     _priceCtrl.dispose();
+    _quantityCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final form = ref.watch(postWantedFormProvider);
+
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Condición', style: Theme.of(context).textTheme.titleMedium),
+          Text('Condición mínima', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _conditionNames.entries
-                .map((e) => ChoiceChip(
-                      label: Text(e.value),
-                      selected: _condition == e.key,
-                      onSelected: (_) {
-                        setState(() => _condition = e.key);
-                        ref
-                            .read(postListingFormProvider.notifier)
-                            .setCondition(e.key);
-                      },
-                    ))
-                .toList(),
+            children: [
+              ChoiceChip(
+                label: const Text('Cualquiera'),
+                selected: _condition == null,
+                onSelected: (_) {
+                  setState(() => _condition = null);
+                  ref.read(postWantedFormProvider.notifier).setMinCondition(null);
+                },
+              ),
+              ..._conditionNames.entries.map((e) => ChoiceChip(
+                    label: Text(e.value),
+                    selected: _condition == e.key,
+                    onSelected: (_) {
+                      setState(() => _condition = e.key);
+                      ref
+                          .read(postWantedFormProvider.notifier)
+                          .setMinCondition(e.key);
+                    },
+                  )),
+            ],
           ),
           const SizedBox(height: 20),
           TextField(
             controller: _priceCtrl,
             decoration: const InputDecoration(
-                labelText: 'Precio (ARS)', prefixText: '\$ '),
+                labelText: 'Pago hasta (ARS)', prefixText: '\$ '),
             keyboardType: TextInputType.number,
             onChanged: (v) {
               final d = double.tryParse(v) ?? 0;
-              ref.read(postListingFormProvider.notifier).setPrice(d);
+              ref.read(postWantedFormProvider.notifier).setMaxPrice(d);
+            },
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _quantityCtrl,
+            decoration: const InputDecoration(labelText: 'Cantidad'),
+            keyboardType: TextInputType.number,
+            onChanged: (v) {
+              final q = int.tryParse(v) ?? 1;
+              ref.read(postWantedFormProvider.notifier).setQuantity(q > 0 ? q : 1);
             },
           ),
           const SizedBox(height: 16),
@@ -393,145 +384,10 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
                 const InputDecoration(labelText: 'Descripción (opcional)'),
             maxLines: 3,
             onChanged: (v) => ref
-                .read(postListingFormProvider.notifier)
+                .read(postWantedFormProvider.notifier)
                 .setDescription(v.isEmpty ? null : v),
           ),
-          const Spacer(),
-          Row(children: [
-            OutlinedButton(
-                onPressed: widget.onBack, child: const Text('Atrás')),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                onPressed:
-                    (_condition != null && _priceCtrl.text.isNotEmpty)
-                        ? widget.onNext
-                        : null,
-                child: const Text('Siguiente'),
-              ),
-            ),
-          ]),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-}
-
-class _PhotoStep extends ConsumerStatefulWidget {
-  final VoidCallback onBack;
-  final VoidCallback onSubmit;
-  const _PhotoStep({required this.onBack, required this.onSubmit});
-
-  @override
-  ConsumerState<_PhotoStep> createState() => _PhotoStepState();
-}
-
-class _PhotoStepState extends ConsumerState<_PhotoStep> {
-  final List<File> _files = [];
-
-  Future<void> _pickPhoto() async {
-    if (_files.length >= 3) return;
-    final picker = ImagePicker();
-    final picked =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked == null) return;
-    setState(() => _files.add(File(picked.path)));
-    ref
-        .read(postListingFormProvider.notifier)
-        .setPhotoPaths(_files.map((f) => f.path).toList());
-  }
-
-  void _removePhoto(int i) {
-    setState(() => _files.removeAt(i));
-    ref
-        .read(postListingFormProvider.notifier)
-        .setPhotoPaths(_files.map((f) => f.path).toList());
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final form = ref.watch(postListingFormProvider);
-    final scheme = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Fotos', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text(
-            'Opcional, hasta 3. La primera es la portada.',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 132,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                ..._files.asMap().entries.map((e) => Stack(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(right: 10),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.file(e.value,
-                                width: 132, height: 132, fit: BoxFit.cover),
-                          ),
-                        ),
-                        Positioned(
-                          top: 4,
-                          right: 14,
-                          child: GestureDetector(
-                            onTap: () => _removePhoto(e.key),
-                            child: CircleAvatar(
-                              radius: 12,
-                              backgroundColor: scheme.error,
-                              child: Icon(Icons.close,
-                                  size: 14, color: scheme.onError),
-                            ),
-                          ),
-                        ),
-                      ],
-                    )),
-                if (_files.length < 3)
-                  InkWell(
-                    onTap: _pickPhoto,
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      width: 132,
-                      height: 132,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: scheme.outlineVariant),
-                        borderRadius: BorderRadius.circular(10),
-                        color: scheme.surface,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add_a_photo_outlined,
-                              color: scheme.onSurfaceVariant),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Agregar foto',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: scheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const Spacer(),
+          const SizedBox(height: 24),
           Row(children: [
             OutlinedButton(
                 onPressed: widget.onBack, child: const Text('Atrás')),
@@ -543,7 +399,6 @@ class _PhotoStepState extends ConsumerState<_PhotoStep> {
               ),
             ),
           ]),
-          const SizedBox(height: 16),
         ],
       ),
     );

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"tcgmarketcordoba/internal/auth"
+	"tcgmarketcordoba/internal/buyorders"
 	"tcgmarketcordoba/internal/cards"
 	"tcgmarketcordoba/internal/config"
 	"tcgmarketcordoba/internal/db"
@@ -52,6 +53,13 @@ func main() {
 
 	cardH := &cards.Handler{Store: cards.NewPgStore(pool)}
 	mux.HandleFunc("GET /cards/search", cardH.Search)
+
+	buyOrderH := &buyorders.Handler{Store: buyorders.NewPgStore(pool)}
+	mux.HandleFunc("GET /buy-orders", buyOrderH.List)
+	mux.HandleFunc("GET /buy-orders/{id}", buyOrderH.Get)
+	mux.Handle("POST /buy-orders", requireAuth(http.HandlerFunc(buyOrderH.Create)))
+	mux.Handle("PATCH /buy-orders/{id}", requireAuth(http.HandlerFunc(buyOrderH.Patch)))
+	mux.Handle("GET /me/buy-orders", requireAuth(http.HandlerFunc(buyOrderH.MyBuyOrders)))
 
 	profileH := &profiles.Handler{Store: profiles.NewPgStore(pool)}
 	mux.HandleFunc("GET /cities", profileH.ListCities)

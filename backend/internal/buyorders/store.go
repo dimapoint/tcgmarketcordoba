@@ -1,0 +1,177 @@
+package buyorders
+
+import (
+	"context"
+	"errors"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+type Store interface {
+	Active(ctx context.Context, query string) ([]BuyOrder, error)
+	ByID(ctx context.Context, id string) (BuyOrder, error)
+	Mine(ctx context.Context, buyerID, status string) ([]BuyOrder, error)
+	Create(ctx context.Context, p CreateParams) (BuyOrder, error)
+	UpdateStatus(ctx context.Context, id, buyerID, status string) error
+}
+
+type CreateParams struct {
+	BuyerID        string
+	CardPrintingID string
+	MinCondition   *string
+	MaxPrice       float64
+	Quantity       int
+	Description    *string
+	CityID         *string
+}
+
+type PgStore struct{ pool *pgxpool.Pool }
+
+func NewPgStore(pool *pgxpool.Pool) *PgStore { return &PgStore{pool: pool} }
+
+const selectBuyOrder = `
+SELECT bo.id, bo.buyer_id, c.name, s.name, cp.is_foil, bo.min_condition::text,
+       bo.max_price::float8, bo.quantity, bo.description, bo.status::text,
+       p.username, ci.name, bo.created_at
+FROM buy_orders bo
+JOIN card_printings cp ON cp.id = bo.card_printing_id
+JOIN cards c ON c.id = cp.card_id
+JOIN sets s ON s.id = cp.set_id
+JOIN profiles p ON p.id = bo.buyer_id
+JOIN cities ci ON ci.id = bo.city_id
+`
+
+func scanBuyOrder(row pgx.Row) (BuyOrder, error) {
+	var o BuyOrder
+	err := row.Scan(&o.ID, &o.BuyerID, &o.CardName, &o.SetName, &o.IsFoil,
+		&o.MinCondition, &o.MaxPrice, &o.Quantity, &o.Description, &o.Status,
+		&o.BuyerUsername, &o.BuyerCity, &o.CreatedAt)
+	return o, err
+}
+
+func (s *PgStore) Active(ctx context.Context, query string) ([]BuyOrder, error) {
+	rows, err := s.pool.Query(ctx, selectBuyOrder+`
+		WHERE bo.status = 'active' AND ($1 = '' OR c.name ILIKE '%'||$1||'%')
+		ORDER BY bo.created_at DESC`, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []BuyOrder{}
+	for rows.Next() {
+		o, err := scanBuyOrder(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, o)
+	}
+	return out, rows.Err()
+}
+
+func (s *PgStore) ByID(ctx context.Context, id string) (BuyOrder, error) {
+	o, err := scanBuyOrder(s.pool.QueryRow(ctx, selectBuyOrder+` WHERE bo.id = $1`, id))
+	if errors.Is(err, pgx.ErrNoRows) || isInvalidUUID(err) {
+		return BuyOrder{}, ErrNotFound
+	}
+	return o, err
+}
+
+// Mine calcula, además de los datos de la orden, cuántos listings activos la
+// matchean hoy (misma carta, precio <= max_price, condición al menos tan
+// buena como min_condition). Por eso usa un scan de 13 columnas en vez del
+// scanBuyOrder base de 12 — no es una inconsistencia a "corregir", es la
+// única query que necesita ese dato agregado.
+func (s *PgStore) Mine(ctx context.Context, buyerID, status string) ([]BuyOrder, error) {
+	rows, err := s.pool.Query(ctx, selectBuyOrder+`,
+		(SELECT COUNT(*) FROM listings l
+		 WHERE l.status = 'active'
+		   AND l.card_printing_id = bo.card_printing_id
+		   AND l.price <= bo.max_price
+		   AND (bo.min_condition IS NULL OR l.condition <= bo.min_condition)
+		) AS matching_count
+		WHERE bo.buyer_id = $1 AND bo.status = $2::buy_order_status
+		ORDER BY bo.created_at DESC`, buyerID, status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []BuyOrder{}
+	for rows.Next() {
+		var o BuyOrder
+		err := rows.Scan(&o.ID, &o.BuyerID, &o.CardName, &o.SetName, &o.IsFoil,
+			&o.MinCondition, &o.MaxPrice, &o.Quantity, &o.Description, &o.Status,
+			&o.BuyerUsername, &o.BuyerCity, &o.CreatedAt, &o.MatchingListingsCount)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, o)
+	}
+	return out, rows.Err()
+}
+
+func (s *PgStore) Create(ctx context.Context, p CreateParams) (BuyOrder, error) {
+	cityID := p.CityID
+	if cityID == nil {
+		var fromProfile *string
+		err := s.pool.QueryRow(ctx,
+			`SELECT city_id FROM profiles WHERE id = $1`, p.BuyerID,
+		).Scan(&fromProfile)
+		if err != nil {
+			return BuyOrder{}, err
+		}
+		cityID = fromProfile
+	}
+	if cityID == nil {
+		// La app es solo de Córdoba: si ni el request ni el perfil traen
+		// ciudad, se usa Córdoba por default en vez de exigirle al
+		// comprador que configure una.
+		var cordobaID string
+		err := s.pool.QueryRow(ctx,
+			`SELECT id FROM cities WHERE name = 'Córdoba' LIMIT 1`,
+		).Scan(&cordobaID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return BuyOrder{}, ErrNoCity
+		}
+		if err != nil {
+			return BuyOrder{}, err
+		}
+		cityID = &cordobaID
+	}
+
+	var id string
+	err := s.pool.QueryRow(ctx, `
+		INSERT INTO buy_orders (buyer_id, card_printing_id, min_condition, max_price, quantity, description, city_id)
+		VALUES ($1, $2, $3::card_condition, $4, $5, $6, $7)
+		RETURNING id`,
+		p.BuyerID, p.CardPrintingID, p.MinCondition, p.MaxPrice, p.Quantity, p.Description, *cityID,
+	).Scan(&id)
+	if err != nil {
+		return BuyOrder{}, err
+	}
+	return s.ByID(ctx, id)
+}
+
+func (s *PgStore) UpdateStatus(ctx context.Context, id, buyerID, status string) error {
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE buy_orders SET status = $3::buy_order_status
+		WHERE id = $1 AND buyer_id = $2`, id, buyerID, status)
+	if isInvalidUUID(err) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func isInvalidUUID(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "22P02"
+}

@@ -8,7 +8,10 @@ import '../../features/browse/screens/browse_screen.dart';
 import '../../features/browse/screens/listing_detail_screen.dart';
 import '../../features/my_listings/screens/my_listings_screen.dart';
 import '../../features/post_listing/screens/post_listing_screen.dart';
+import '../../features/post_wanted/screens/post_wanted_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/wanted/screens/wanted_detail_screen.dart';
+import '../../features/wanted/screens/wanted_screen.dart';
 import '../../shared/widgets/scaffold_with_nav.dart';
 import '../api/api_provider.dart';
 
@@ -27,7 +30,7 @@ class SessionRefreshNotifier extends ChangeNotifier {
   }
 }
 
-const _protectedPrefixes = ['/post', '/my-listings', '/profile'];
+const _protectedPrefixes = ['/post', '/wanted/new', '/my-listings', '/profile'];
 
 /// Decisión de redirect pura, testeable sin widgets.
 @visibleForTesting
@@ -77,6 +80,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => ScaffoldWithNav(child: child),
         routes: [
           GoRoute(path: '/',            builder: (c, s) => const BrowseScreen()),
+          GoRoute(path: '/wanted',      builder: (c, s) => const WantedScreen()),
+          GoRoute(path: '/wanted/new',  builder: (c, s) => const PostWantedScreen()),
           GoRoute(path: '/post',        builder: (c, s) => const PostListingScreen()),
           GoRoute(path: '/my-listings', builder: (c, s) => const MyListingsScreen()),
           GoRoute(path: '/profile',     builder: (c, s) => const ProfileScreen()),
@@ -85,6 +90,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/listings/:id',
         builder: (c, s) => ListingDetailScreen(id: s.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/buy-orders/:id',
+        builder: (c, s) => WantedDetailScreen(id: s.pathParameters['id']!),
       ),
       GoRoute(path: '/sign-in',  builder: (c, s) => const SignInScreen()),
       GoRoute(path: '/sign-up',  builder: (c, s) => const SignUpScreen()),

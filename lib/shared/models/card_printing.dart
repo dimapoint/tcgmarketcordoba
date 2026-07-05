@@ -7,6 +7,7 @@ class CardPrinting {
   final String cardNumber;
   final bool isFoil;
   final String? imageUrl;
+  final int wantedCount;
 
   const CardPrinting({
     required this.id,
@@ -17,6 +18,7 @@ class CardPrinting {
     required this.cardNumber,
     required this.isFoil,
     this.imageUrl,
+    this.wantedCount = 0,
   });
 
   factory CardPrinting.fromJson(Map<String, dynamic> j) => CardPrinting(
@@ -28,6 +30,7 @@ class CardPrinting {
         cardNumber: j['card_number'] as String,
         isFoil: j['is_foil'] as bool,
         imageUrl: j['image_url'] as String?,
+        wantedCount: j['wanted_count'] as int? ?? 0,
       );
 
   String get displayName =>
