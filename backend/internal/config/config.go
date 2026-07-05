@@ -13,6 +13,8 @@ type Config struct {
 	JWTSecret          string
 	SupabaseURL        string
 	SupabaseServiceKey string
+	RiotAPIKey         string
+	WebDir             string
 }
 
 // Load lee variables de entorno; si existe un archivo .env en el CWD
@@ -25,6 +27,8 @@ func Load() (Config, error) {
 		JWTSecret:          os.Getenv("JWT_SECRET"),
 		SupabaseURL:        os.Getenv("SUPABASE_URL"),
 		SupabaseServiceKey: os.Getenv("SUPABASE_SERVICE_ROLE_KEY"),
+		RiotAPIKey:         os.Getenv("RIOT_API_KEY"),
+		WebDir:             os.Getenv("WEB_DIR"),
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required")
