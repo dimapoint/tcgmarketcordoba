@@ -233,9 +233,9 @@ class _CardResultTile extends StatelessWidget {
                 child: SizedBox(
                   width: 40,
                   height: 56,
-                  child: printing.imageUrl != null
+                  child: printing.thumbnailUrl != null
                       ? CachedNetworkImage(
-                          imageUrl: printing.imageUrl!,
+                          imageUrl: printing.thumbnailUrl!,
                           fit: BoxFit.cover,
                           placeholder: (_, _) => ColoredBox(
                               color: scheme.surfaceContainerHighest),

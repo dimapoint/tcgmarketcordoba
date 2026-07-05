@@ -120,6 +120,94 @@ func TestImageProxyRejectsBadNames(t *testing.T) {
 	}
 }
 
+func TestImageProxyForwardsWidth(t *testing.T) {
+	var gotQuery string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.RawQuery
+		w.Write([]byte("x"))
+	}))
+	defer upstream.Close()
+
+	p := &ImageProxy{Upstream: upstream.URL}
+	rec := httptest.NewRecorder()
+	newProxyMux(p).ServeHTTP(rec, httptest.NewRequest("GET", "/card-images/abc.png?w=120", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d", rec.Code)
+	}
+	if gotQuery != "accountingTag=RB&w=120" {
+		t.Fatalf("upstream query = %q, want accountingTag=RB&w=120", gotQuery)
+	}
+}
+
+func TestImageProxyIgnoresInvalidWidth(t *testing.T) {
+	var gotQuery string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.RawQuery
+		w.Write([]byte("x"))
+	}))
+	defer upstream.Close()
+
+	p := &ImageProxy{Upstream: upstream.URL}
+	for _, bad := range []string{"abc", "-5", "0", "99999"} {
+		rec := httptest.NewRecorder()
+		newProxyMux(p).ServeHTTP(rec, httptest.NewRequest("GET", "/card-images/abc.png?w="+bad, nil))
+		if rec.Code != http.StatusOK {
+			t.Errorf("w=%q: code = %d", bad, rec.Code)
+		}
+		if gotQuery != "accountingTag=RB" {
+			t.Errorf("w=%q: upstream query = %q, want sin w", bad, gotQuery)
+		}
+	}
+}
+
+func TestImageProxyCachesOnDisk(t *testing.T) {
+	hits := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		w.Header().Set("Content-Type", "image/png")
+		w.Write([]byte("PNGDATA-" + r.URL.Query().Get("w")))
+	}))
+	defer upstream.Close()
+
+	p := &ImageProxy{Upstream: upstream.URL, CacheDir: t.TempDir()}
+	mux := newProxyMux(p)
+
+	get := func(target string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", target, nil))
+		return rec
+	}
+
+	first := get("/card-images/abc.png")
+	second := get("/card-images/abc.png")
+	if hits != 1 {
+		t.Fatalf("upstream hits = %d tras repetir el mismo archivo, want 1", hits)
+	}
+	if first.Body.String() != "PNGDATA-" || second.Body.String() != "PNGDATA-" {
+		t.Fatalf("bodies = %q, %q", first.Body, second.Body)
+	}
+	if ct := second.Header().Get("Content-Type"); ct != "image/png" {
+		t.Fatalf("cache hit content-type = %q", ct)
+	}
+	if cc := second.Header().Get("Cache-Control"); !strings.Contains(cc, "max-age") {
+		t.Fatalf("cache hit cache-control = %q", cc)
+	}
+
+	// Otro ancho es otra variante: nueva ida al CDN y cache aparte.
+	thumb := get("/card-images/abc.png?w=120")
+	if hits != 2 {
+		t.Fatalf("upstream hits = %d tras pedir w=120, want 2", hits)
+	}
+	if thumb.Body.String() != "PNGDATA-120" {
+		t.Fatalf("thumb body = %q", thumb.Body)
+	}
+	get("/card-images/abc.png?w=120")
+	if hits != 2 {
+		t.Fatalf("upstream hits = %d tras repetir w=120, want 2", hits)
+	}
+}
+
 func TestImageProxyUpstreamErrorIs404(t *testing.T) {
 	upstream := httptest.NewServer(http.NotFoundHandler())
 	defer upstream.Close()

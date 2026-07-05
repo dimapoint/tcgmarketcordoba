@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"tcgmarketcordoba/internal/auth"
@@ -53,7 +55,10 @@ func main() {
 
 	cardH := &cards.Handler{Store: cards.NewPgStore(pool)}
 	mux.HandleFunc("GET /cards/search", cardH.Search)
-	mux.HandleFunc("GET /card-images/{file}", (&cards.ImageProxy{}).Serve)
+	imageProxy := &cards.ImageProxy{
+		CacheDir: filepath.Join(os.TempDir(), "tcgmarket-card-images"),
+	}
+	mux.HandleFunc("GET /card-images/{file}", imageProxy.Serve)
 
 	buyOrderH := &buyorders.Handler{Store: buyorders.NewPgStore(pool)}
 	mux.HandleFunc("GET /buy-orders", buyOrderH.List)

@@ -35,4 +35,12 @@ class CardPrinting {
 
   String get displayName =>
       '${isFoil ? "✦ " : ""}$cardName — $setCode #$cardNumber';
+
+  /// Variante chica para los pickers: el proxy del backend (/card-images)
+  /// redimensiona server-side con ?w=, ~50 KB en vez del PNG completo.
+  String? get thumbnailUrl {
+    final url = imageUrl;
+    if (url == null || url.contains('?')) return url;
+    return '$url?w=120';
+  }
 }
