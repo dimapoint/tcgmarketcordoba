@@ -14,6 +14,7 @@ import (
 	"tcgmarketcordoba/internal/listings"
 	"tcgmarketcordoba/internal/photos"
 	"tcgmarketcordoba/internal/profiles"
+	"tcgmarketcordoba/internal/webapp"
 )
 
 func main() {
@@ -70,6 +71,12 @@ func main() {
 		},
 	}
 	mux.Handle("POST /listings/{id}/photos", requireAuth(http.HandlerFunc(photoH.Upload)))
+
+	// En producción el mismo server sirve el build web de Flutter; las rutas
+	// de API registradas arriba tienen precedencia sobre el catch-all "/".
+	if cfg.WebDir != "" {
+		mux.Handle("/", webapp.Handler(cfg.WebDir))
+	}
 
 	log.Printf("API listening on :%s", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, httpx.CORS(mux)))

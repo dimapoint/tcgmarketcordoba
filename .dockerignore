@@ -1,0 +1,5 @@
+# Solo el backend y el build web de Flutter entran al contexto de Docker
+*
+!backend
+!build/web
+backend/.env
