@@ -34,3 +34,12 @@ func TestSearchReturnsResults(t *testing.T) {
 		t.Fatalf("body = %s", rec.Body)
 	}
 }
+
+func TestSearchIncludesWantedCount(t *testing.T) {
+	h := &Handler{Store: &fakeStore{results: []Printing{{CardName: "Jinx", WantedCount: 2}}}}
+	rec := httptest.NewRecorder()
+	h.Search(rec, httptest.NewRequest("GET", "/cards/search?q=ji", nil))
+	if !strings.Contains(rec.Body.String(), `"wanted_count":2`) {
+		t.Fatalf("body = %s, want wanted_count 2", rec.Body)
+	}
+}
