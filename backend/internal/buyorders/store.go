@@ -31,10 +31,11 @@ type PgStore struct{ pool *pgxpool.Pool }
 
 func NewPgStore(pool *pgxpool.Pool) *PgStore { return &PgStore{pool: pool} }
 
-const selectBuyOrder = `
-SELECT bo.id, bo.buyer_id, c.name, s.name, cp.is_foil, bo.min_condition::text,
+const buyOrderColumns = `bo.id, bo.buyer_id, c.name, s.name, cp.is_foil, bo.min_condition::text,
        bo.max_price::float8, bo.quantity, bo.description, bo.status::text,
-       p.username, ci.name, bo.created_at
+       p.username, ci.name, bo.created_at`
+
+const buyOrderFrom = `
 FROM buy_orders bo
 JOIN card_printings cp ON cp.id = bo.card_printing_id
 JOIN cards c ON c.id = cp.card_id
@@ -42,6 +43,8 @@ JOIN sets s ON s.id = cp.set_id
 JOIN profiles p ON p.id = bo.buyer_id
 JOIN cities ci ON ci.id = bo.city_id
 `
+
+const selectBuyOrder = `SELECT ` + buyOrderColumns + buyOrderFrom
 
 func scanBuyOrder(row pgx.Row) (BuyOrder, error) {
 	var o BuyOrder
@@ -84,16 +87,19 @@ func (s *PgStore) ByID(ctx context.Context, id string) (BuyOrder, error) {
 // buena como min_condition). Por eso usa un scan de 13 columnas en vez del
 // scanBuyOrder base de 12 — no es una inconsistencia a "corregir", es la
 // única query que necesita ese dato agregado.
+const mineQuery = `SELECT ` + buyOrderColumns + `,
+	(SELECT COUNT(*) FROM listings l
+	 WHERE l.status = 'active'
+	   AND l.card_printing_id = bo.card_printing_id
+	   AND l.price <= bo.max_price
+	   AND (bo.min_condition IS NULL OR l.condition <= bo.min_condition)
+	) AS matching_count
+	` + buyOrderFrom + `
+	WHERE bo.buyer_id = $1 AND bo.status = $2::buy_order_status
+	ORDER BY bo.created_at DESC`
+
 func (s *PgStore) Mine(ctx context.Context, buyerID, status string) ([]BuyOrder, error) {
-	rows, err := s.pool.Query(ctx, selectBuyOrder+`,
-		(SELECT COUNT(*) FROM listings l
-		 WHERE l.status = 'active'
-		   AND l.card_printing_id = bo.card_printing_id
-		   AND l.price <= bo.max_price
-		   AND (bo.min_condition IS NULL OR l.condition <= bo.min_condition)
-		) AS matching_count
-		WHERE bo.buyer_id = $1 AND bo.status = $2::buy_order_status
-		ORDER BY bo.created_at DESC`, buyerID, status)
+	rows, err := s.pool.Query(ctx, mineQuery, buyerID, status)
 	if err != nil {
 		return nil, err
 	}
