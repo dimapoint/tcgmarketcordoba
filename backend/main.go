@@ -53,6 +53,7 @@ func main() {
 
 	cardH := &cards.Handler{Store: cards.NewPgStore(pool)}
 	mux.HandleFunc("GET /cards/search", cardH.Search)
+	mux.HandleFunc("GET /card-images/{file}", (&cards.ImageProxy{}).Serve)
 
 	buyOrderH := &buyorders.Handler{Store: buyorders.NewPgStore(pool)}
 	mux.HandleFunc("GET /buy-orders", buyOrderH.List)

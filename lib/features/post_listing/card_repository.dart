@@ -15,9 +15,16 @@ class ApiCardRepository implements CardRepository {
   Future<List<CardPrinting>> search(String query) async {
     if (query.length < 2) return [];
     final data = await _api.get('/cards/search', query: {'q': query});
-    return (data as List)
-        .map((j) => CardPrinting.fromJson(j as Map<String, dynamic>))
-        .toList();
+    return (data as List).map((j) {
+      final json = j as Map<String, dynamic>;
+      // El backend manda image_url relativa (/card-images/...): la sirve él
+      // mismo como proxy del CDN de Riot, que no habilita CORS.
+      final img = json['image_url'] as String?;
+      if (img != null && img.startsWith('/')) {
+        json['image_url'] = '${_api.baseUrl}$img';
+      }
+      return CardPrinting.fromJson(json);
+    }).toList();
   }
 }
 

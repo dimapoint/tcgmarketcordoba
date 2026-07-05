@@ -75,5 +75,13 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusInternalServerError, "error interno")
 		return
 	}
+	for i := range ps {
+		if ps[i].ImageURL == nil {
+			continue
+		}
+		if path, ok := proxyImagePath(*ps[i].ImageURL); ok {
+			ps[i].ImageURL = &path
+		}
+	}
 	httpx.JSON(w, http.StatusOK, ps)
 }
