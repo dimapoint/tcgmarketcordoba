@@ -8,8 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tcgmarketcordoba/core/api/api_client.dart';
 import 'package:tcgmarketcordoba/core/api/api_provider.dart';
 import 'package:tcgmarketcordoba/core/api/token_store.dart';
+import 'package:tcgmarketcordoba/core/onboarding/onboarding_provider.dart';
+import 'package:tcgmarketcordoba/core/onboarding/onboarding_store.dart';
 import 'package:tcgmarketcordoba/core/router/router.dart';
 import 'package:tcgmarketcordoba/features/auth/auth_provider.dart';
+import 'package:tcgmarketcordoba/features/onboarding/onboarding_content.dart';
 
 Map<String, dynamic> _authBody(String at, String rt) => {
       'access_token': at,
@@ -17,11 +20,12 @@ Map<String, dynamic> _authBody(String at, String rt) => {
       'user': {'id': 'u1', 'email': 'a@b.com'},
     };
 
-const _sessionPrefs = {
+final _sessionPrefs = {
   'auth.access_token': 'at1',
   'auth.refresh_token': 'rt1',
   'auth.user_id': 'u1',
   'auth.email': 'a@b.com',
+  'onboarding.last_seen_version': kOnboardingLatestVersion,
 };
 
 MockClient _mockApi() => MockClient((req) async {
@@ -35,6 +39,10 @@ Future<ApiClient> _apiClient() async {
   final prefs = await SharedPreferences.getInstance();
   return ApiClient(
       baseUrl: 'http://x', tokens: TokenStore(prefs), httpClient: _mockApi());
+}
+
+Future<OnboardingStore> _onboardingStore() async {
+  return OnboardingStore(await SharedPreferences.getInstance());
 }
 
 void main() {
@@ -55,6 +63,7 @@ void main() {
     test('deslogueado en ruta protegida -> sign-in con from', () {
       final r = computeRedirect(
         loggedIn: false,
+        hasSeenOnboarding: true,
         uri: Uri.parse('/post'),
         matchedLocation: '/post',
       );
@@ -67,7 +76,11 @@ void main() {
       for (final loc in ['/', '/listings/abc', '/sign-in', '/sign-up']) {
         expect(
           computeRedirect(
-              loggedIn: false, uri: Uri.parse(loc), matchedLocation: loc),
+            loggedIn: false,
+            hasSeenOnboarding: true,
+            uri: Uri.parse(loc),
+            matchedLocation: loc,
+          ),
           isNull,
           reason: loc,
         );
@@ -78,6 +91,7 @@ void main() {
       expect(
         computeRedirect(
           loggedIn: true,
+          hasSeenOnboarding: true,
           uri: Uri.parse('/sign-in?from=%2Fpost'),
           matchedLocation: '/sign-in',
         ),
@@ -89,6 +103,7 @@ void main() {
       expect(
         computeRedirect(
           loggedIn: true,
+          hasSeenOnboarding: true,
           uri: Uri.parse('/sign-in'),
           matchedLocation: '/sign-in',
         ),
@@ -100,6 +115,7 @@ void main() {
       expect(
         computeRedirect(
           loggedIn: true,
+          hasSeenOnboarding: true,
           uri: Uri.parse('/sign-up?from=%2Fmy-listings'),
           matchedLocation: '/sign-up',
         ),
@@ -111,6 +127,7 @@ void main() {
       expect(
         computeRedirect(
           loggedIn: true,
+          hasSeenOnboarding: true,
           uri: Uri.parse('/post'),
           matchedLocation: '/post',
         ),
@@ -123,6 +140,7 @@ void main() {
         expect(
           computeRedirect(
             loggedIn: true,
+            hasSeenOnboarding: true,
             uri: Uri(path: '/sign-in', queryParameters: {'from': from}),
             matchedLocation: '/sign-in',
           ),
@@ -131,6 +149,67 @@ void main() {
         );
       }
     });
+
+    test('logueado sin ver onboarding en home -> /onboarding', () {
+      expect(
+        computeRedirect(
+          loggedIn: true,
+          hasSeenOnboarding: false,
+          uri: Uri.parse('/'),
+          matchedLocation: '/',
+        ),
+        '/onboarding',
+      );
+    });
+
+    test('logueado sin ver onboarding en ruta protegida -> /onboarding', () {
+      expect(
+        computeRedirect(
+          loggedIn: true,
+          hasSeenOnboarding: false,
+          uri: Uri.parse('/post'),
+          matchedLocation: '/post',
+        ),
+        '/onboarding',
+      );
+    });
+
+    test('logueado sin ver onboarding, ya en /onboarding -> null (sin loop)',
+        () {
+      expect(
+        computeRedirect(
+          loggedIn: true,
+          hasSeenOnboarding: false,
+          uri: Uri.parse('/onboarding'),
+          matchedLocation: '/onboarding',
+        ),
+        isNull,
+      );
+    });
+
+    test('logueado y ya vio el onboarding, en /onboarding -> home', () {
+      expect(
+        computeRedirect(
+          loggedIn: true,
+          hasSeenOnboarding: true,
+          uri: Uri.parse('/onboarding'),
+          matchedLocation: '/onboarding',
+        ),
+        '/',
+      );
+    });
+
+    test('deslogueado en /onboarding -> home', () {
+      expect(
+        computeRedirect(
+          loggedIn: false,
+          hasSeenOnboarding: false,
+          uri: Uri.parse('/onboarding'),
+          matchedLocation: '/onboarding',
+        ),
+        '/',
+      );
+    });
   });
 
   group('routerProvider', () {
@@ -138,8 +217,12 @@ void main() {
         (tester) async {
       SharedPreferences.setMockInitialValues(Map.of(_sessionPrefs));
       final api = await _apiClient();
+      final onboarding = await _onboardingStore();
       final container = ProviderContainer(
-        overrides: [apiClientProvider.overrideWithValue(api)],
+        overrides: [
+          apiClientProvider.overrideWithValue(api),
+          onboardingStoreProvider.overrideWithValue(onboarding),
+        ],
       );
       addTearDown(container.dispose);
 
@@ -153,10 +236,17 @@ void main() {
 
     testWidgets('deslogueado: /post redirige a sign-in y el login vuelve a /post',
         (tester) async {
-      SharedPreferences.setMockInitialValues({});
+      // Onboarding ya visto: este test cubre el flujo de sign-in + from,
+      // no la interacción con el onboarding (cubierta en un test aparte).
+      SharedPreferences.setMockInitialValues(
+          {'onboarding.last_seen_version': kOnboardingLatestVersion});
       final api = await _apiClient();
+      final onboarding = await _onboardingStore();
       final container = ProviderContainer(
-        overrides: [apiClientProvider.overrideWithValue(api)],
+        overrides: [
+          apiClientProvider.overrideWithValue(api),
+          onboardingStoreProvider.overrideWithValue(onboarding),
+        ],
       );
       addTearDown(container.dispose);
       final router = container.read(routerProvider);
@@ -185,8 +275,12 @@ void main() {
         (tester) async {
       SharedPreferences.setMockInitialValues(Map.of(_sessionPrefs));
       final api = await _apiClient();
+      final onboarding = await _onboardingStore();
       final container = ProviderContainer(
-        overrides: [apiClientProvider.overrideWithValue(api)],
+        overrides: [
+          apiClientProvider.overrideWithValue(api),
+          onboardingStoreProvider.overrideWithValue(onboarding),
+        ],
       );
       addTearDown(container.dispose);
       final router = container.read(routerProvider);
@@ -209,8 +303,12 @@ void main() {
         (tester) async {
       SharedPreferences.setMockInitialValues(Map.of(_sessionPrefs));
       final api = await _apiClient();
+      final onboarding = await _onboardingStore();
       final container = ProviderContainer(
-        overrides: [apiClientProvider.overrideWithValue(api)],
+        overrides: [
+          apiClientProvider.overrideWithValue(api),
+          onboardingStoreProvider.overrideWithValue(onboarding),
+        ],
       );
       addTearDown(container.dispose);
       final router = container.read(routerProvider);
@@ -227,6 +325,38 @@ void main() {
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
         '/sign-in',
+      );
+    });
+
+    testWidgets(
+        'sesión nueva sin onboarding visto: /post lleva primero a /onboarding',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({
+        ..._sessionPrefs,
+        'onboarding.last_seen_version': 0,
+      });
+      final api = await _apiClient();
+      final onboarding = await _onboardingStore();
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(api),
+          onboardingStoreProvider.overrideWithValue(onboarding),
+        ],
+      );
+      addTearDown(container.dispose);
+      final router = container.read(routerProvider);
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      await tester.pumpAndSettle();
+
+      router.go('/post');
+      await tester.pumpAndSettle();
+      expect(
+        router.routerDelegate.currentConfiguration.uri.path,
+        '/onboarding',
       );
     });
   });
