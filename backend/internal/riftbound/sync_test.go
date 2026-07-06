@@ -110,6 +110,23 @@ func testContent() *Content {
 					Name: "Loose Cannon", Type: "LEGEND", Rarity: "RARE",
 					Faction: "CHAOS",
 				},
+				// Common: única rareza (junto a Uncommon) con versión normal
+				{
+					ID: "OGN-012", CollectorNumber: 12, Set: "OGN",
+					Name: "Poro Herder", Type: "UNIT", Rarity: "COMMON",
+					Faction: "BODY",
+				},
+			},
+		}, {
+			// Proving Grounds: producto fijo, sin foils ni siquiera en rares
+			ID:   "OGS",
+			Name: "Origins: Proving Grounds",
+			Cards: []Card{
+				{
+					ID: "OGS-004", CollectorNumber: 4, Set: "OGS",
+					Name: "Master Yi - Meditative", Type: "LEGEND", Rarity: "RARE",
+					Faction: "MIND",
+				},
 			},
 		}},
 	}
@@ -125,24 +142,28 @@ func TestSyncMapsAndUpserts(t *testing.T) {
 	if !reflect.DeepEqual(store.games, []string{"riftbound"}) {
 		t.Errorf("games = %v", store.games)
 	}
-	if !reflect.DeepEqual(store.sets, []string{"game:riftbound|OGN|Origins|2025-10-31"}) {
+	wantSets := []string{
+		"game:riftbound|OGN|Origins|2025-10-31",
+		"game:riftbound|OGS|Origins: Proving Grounds|<nil>",
+	}
+	if !reflect.DeepEqual(store.sets, wantSets) {
 		t.Errorf("sets = %v", store.sets)
 	}
 
 	// referencias normalizadas a Title Case
-	wantTypes := map[string]bool{"Champion": true, "Legend": true}
+	wantTypes := map[string]bool{"Champion": true, "Legend": true, "Unit": true}
 	for _, ty := range store.types {
 		if !wantTypes[ty] {
 			t.Errorf("card type sin normalizar: %q", ty)
 		}
 	}
-	wantRarities := map[string]bool{"Epic": true, "Alternate Art": true, "Rare": true}
+	wantRarities := map[string]bool{"Epic": true, "Alternate Art": true, "Rare": true, "Common": true}
 	for _, r := range store.rarities {
 		if !wantRarities[r] {
 			t.Errorf("rarity sin normalizar: %q", r)
 		}
 	}
-	wantDomains := map[string]bool{"Fury": true, "Chaos": true}
+	wantDomains := map[string]bool{"Fury": true, "Chaos": true, "Body": true, "Mind": true}
 	for _, d := range store.domains {
 		if !wantDomains[d] {
 			t.Errorf("domain sin normalizar: %q", d)
@@ -154,9 +175,9 @@ func TestSyncMapsAndUpserts(t *testing.T) {
 		}
 	}
 
-	// 2 cartas únicas (el alt-art comparte fila de cards)
-	if len(store.cards) != 2 {
-		t.Fatalf("cards = %d, want 2 (%+v)", len(store.cards), store.cards)
+	// 4 cartas únicas (el alt-art comparte fila de cards)
+	if len(store.cards) != 4 {
+		t.Fatalf("cards = %d, want 4 (%+v)", len(store.cards), store.cards)
 	}
 	jinx := store.cards[0]
 	if jinx.Name != "Jinx, Demolitionist" || jinx.CardTypeID != "type:Champion" {
@@ -193,33 +214,49 @@ func TestSyncMapsAndUpserts(t *testing.T) {
 		t.Errorf("cardKws jinx = %v", store.cardKws)
 	}
 
-	// 3 entradas del API × {no-foil, foil} = 6 printings
+	// Epic/Alternate Art/Rare existen solo foil; Common en normal y foil;
+	// OGS (Proving Grounds) es producto fijo solo normal:
+	// epic + altart + rare + common×2 + ogs = 6 printings
 	if len(store.printings) != 6 {
-		t.Fatalf("printings = %d, want 6", len(store.printings))
+		t.Fatalf("printings = %d, want 6 (%+v)", len(store.printings), store.printings)
 	}
-	base, foil := store.printings[0], store.printings[1]
-	if base.CardNumber != "030" || base.IsFoil || base.SetID != "set:OGN" ||
-		base.RarityID != "rarity:Epic" || base.RiotCardID != "OGN-030" {
-		t.Errorf("base = %+v", base)
+	epic := store.printings[0]
+	if epic.CardNumber != "030" || !epic.IsFoil || epic.SetID != "set:OGN" ||
+		epic.RarityID != "rarity:Epic" || epic.RiotCardID != "OGN-030" {
+		t.Errorf("epic = %+v", epic)
 	}
-	if base.ImageURL == nil || *base.ImageURL != "https://cdn.example/030.png" ||
-		base.ThumbnailURL == nil || *base.ThumbnailURL != "https://cdn.example/030-thumb.png" ||
-		base.Artist == nil || *base.Artist != "Alguien" {
-		t.Errorf("base art = %+v", base)
+	if epic.ImageURL == nil || *epic.ImageURL != "https://cdn.example/030.png" ||
+		epic.ThumbnailURL == nil || *epic.ThumbnailURL != "https://cdn.example/030-thumb.png" ||
+		epic.Artist == nil || *epic.Artist != "Alguien" {
+		t.Errorf("epic art = %+v", epic)
 	}
-	if !foil.IsFoil || foil.CardNumber != "030" || foil.RiotCardID != "OGN-030" {
-		t.Errorf("foil = %+v", foil)
-	}
-	altArt := store.printings[2]
-	if altArt.CardNumber != "320a" || altArt.RarityID != "rarity:Alternate Art" ||
+	altArt := store.printings[1]
+	if altArt.CardNumber != "320a" || !altArt.IsFoil ||
+		altArt.RarityID != "rarity:Alternate Art" ||
 		altArt.CardID != "card:Jinx, Demolitionist" {
 		t.Errorf("altArt = %+v", altArt)
 	}
 	if altArt.ThumbnailURL != nil || altArt.Artist != nil {
 		t.Errorf("altArt sin thumb/artist deberia tener nils: %+v", altArt)
 	}
+	rare := store.printings[2]
+	if rare.CardNumber != "251" || !rare.IsFoil || rare.RarityID != "rarity:Rare" {
+		t.Errorf("rare = %+v", rare)
+	}
+	common, commonFoil := store.printings[3], store.printings[4]
+	if common.CardNumber != "012" || common.IsFoil || common.RarityID != "rarity:Common" {
+		t.Errorf("common = %+v", common)
+	}
+	if commonFoil.CardNumber != "012" || !commonFoil.IsFoil {
+		t.Errorf("commonFoil = %+v", commonFoil)
+	}
+	ogs := store.printings[5]
+	if ogs.SetID != "set:OGS" || ogs.CardNumber != "004" || ogs.IsFoil ||
+		ogs.RarityID != "rarity:Rare" {
+		t.Errorf("ogs = %+v", ogs)
+	}
 
-	if sum.Cards != 2 || sum.Printings != 6 || sum.Sets != 1 {
+	if sum.Cards != 4 || sum.Printings != 6 || sum.Sets != 2 {
 		t.Errorf("summary = %+v", sum)
 	}
 }

@@ -123,11 +123,12 @@ func Sync(ctx context.Context, store Store, content *Content) (Summary, error) {
 				sum.Cards++
 			}
 
-			rarityID, err := store.EnsureRarity(ctx, gameID, titleCase(card.Rarity))
+			rarity := titleCase(card.Rarity)
+			rarityID, err := store.EnsureRarity(ctx, gameID, rarity)
 			if err != nil {
 				return sum, err
 			}
-			for _, isFoil := range []bool{false, true} {
+			for _, isFoil := range finishes(set.ID, rarity) {
 				p := PrintingRow{
 					CardID:       cardID,
 					SetID:        setID,
@@ -198,6 +199,23 @@ func syncCard(ctx context.Context, store Store, gameID string, card Card, sum *S
 		return "", err
 	}
 	return cardID, nil
+}
+
+// finishes devuelve qué versiones (is_foil) existen físicamente de un
+// printing. En sobres "Every Rare and Epic will always be foil" (Riot):
+// solo Common y Uncommon tienen versión normal; Showcase/Alternate Art,
+// promos (OPP/PR/JDG) y Metal salen únicamente foil — confirmado contra los
+// precios de TCGplayer (la variante Normal no tiene mercado). Proving
+// Grounds (OGS) es el caso inverso: producto fijo sin foils.
+func finishes(setCode, rarity string) []bool {
+	if strings.EqualFold(setCode, "OGS") {
+		return []bool{false}
+	}
+	switch rarity {
+	case "Common", "Uncommon":
+		return []bool{false, true}
+	}
+	return []bool{true}
 }
 
 // cardNumber prefiere el número impreso explícito (riftcodex, admite sufijos
