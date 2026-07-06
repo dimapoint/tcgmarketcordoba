@@ -13,17 +13,29 @@ import '../../../shared/widgets/scaffold_with_nav.dart';
 import '../wanted_provider.dart';
 import '../widgets/wanted_card.dart';
 
-class WantedScreen extends StatelessWidget {
+/// Ruta al wizard de publicar búsqueda, con la query prefillada si hay.
+String _newWantedUri(String query) => Uri(
+      path: '/wanted/new',
+      queryParameters: query.isEmpty ? null : {'q': query},
+    ).toString();
+
+class WantedScreen extends ConsumerWidget {
   const WantedScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isWide =
         MediaQuery.sizeOf(context).width >= AppTheme.mobileBreakpoint;
 
     return DefaultTabController(
       length: 2,
       child: Scaffold(
+        floatingActionButton: FloatingActionButton.extended(
+          icon: const Icon(Icons.add),
+          label: const Text('Publicar búsqueda'),
+          onPressed: () =>
+              context.go(_newWantedUri(ref.read(wantedSearchQueryProvider))),
+        ),
         body: SafeArea(
           child: CenteredMaxWidth(
             child: Column(
@@ -58,6 +70,7 @@ class _BoardTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final orders = ref.watch(wantedOrdersProvider);
+    final query = ref.watch(wantedSearchQueryProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,12 +89,19 @@ class _BoardTab extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Error: $e')),
             data: (items) => items.isEmpty
-                ? EmptyState(
-                    icon: Icons.travel_explore_outlined,
-                    message: 'Todavía nadie publicó qué está buscando',
-                    actionLabel: 'Publicar una búsqueda',
-                    onAction: () => context.go('/wanted/new'),
-                  )
+                ? (query.isEmpty
+                    ? EmptyState(
+                        icon: Icons.travel_explore_outlined,
+                        message: 'Todavía nadie publicó qué está buscando',
+                        actionLabel: 'Publicar una búsqueda',
+                        onAction: () => context.go('/wanted/new'),
+                      )
+                    : EmptyState(
+                        icon: Icons.travel_explore_outlined,
+                        message: 'Nadie está buscando "$query" todavía',
+                        actionLabel: 'Publicar búsqueda de "$query"',
+                        onAction: () => context.go(_newWantedUri(query)),
+                      ))
                 : RefreshIndicator(
                     onRefresh: () async => ref.invalidate(wantedOrdersProvider),
                     child: ListView.separated(

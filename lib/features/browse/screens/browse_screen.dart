@@ -14,6 +14,7 @@ class BrowseScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final listings = ref.watch(listingsProvider);
+    final query = ref.watch(searchQueryProvider);
     final isWide =
         MediaQuery.sizeOf(context).width >= AppTheme.mobileBreakpoint;
 
@@ -47,12 +48,26 @@ class BrowseScreen extends ConsumerWidget {
                       const Center(child: CircularProgressIndicator()),
                   error: (e, _) => Center(child: Text('Error: $e')),
                   data: (items) => items.isEmpty
-                      ? EmptyState(
-                          icon: Icons.style_outlined,
-                          message: 'Todavía no hay cartas publicadas',
-                          actionLabel: 'Publicá la primera',
-                          onAction: () => context.go('/post'),
-                        )
+                      ? (query.isEmpty
+                          ? EmptyState(
+                              icon: Icons.style_outlined,
+                              message: 'Todavía no hay cartas publicadas',
+                              actionLabel: 'Publicá la primera',
+                              onAction: () => context.go('/post'),
+                            )
+                          // Nadie vende esa carta: el paso natural en un
+                          // sitio nuevo es publicar la búsqueda, no vender.
+                          : EmptyState(
+                              icon: Icons.style_outlined,
+                              message: 'No hay publicaciones de "$query"',
+                              actionLabel: 'Publicar una búsqueda',
+                              onAction: () => context.go(Uri(
+                                path: '/wanted/new',
+                                queryParameters: {'q': query},
+                              ).toString()),
+                              secondaryActionLabel: 'Vendela vos',
+                              onSecondaryAction: () => context.go('/post'),
+                            ))
                       : RefreshIndicator(
                           onRefresh: () async =>
                               ref.invalidate(listingsProvider),

@@ -10,7 +10,11 @@ import '../post_wanted_provider.dart';
 import '../post_wanted_repository.dart';
 
 class PostWantedScreen extends ConsumerStatefulWidget {
-  const PostWantedScreen({super.key});
+  /// Texto con el que arranca el buscador de cartas (viene de `?q=` en la
+  /// ruta, p. ej. desde un empty state de "no encontré la carta").
+  final String? initialQuery;
+
+  const PostWantedScreen({super.key, this.initialQuery});
 
   @override
   ConsumerState<PostWantedScreen> createState() => _PostWantedScreenState();
@@ -18,6 +22,19 @@ class PostWantedScreen extends ConsumerStatefulWidget {
 
 class _PostWantedScreenState extends ConsumerState<PostWantedScreen> {
   int _step = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // El provider de query no es autoDispose: sincronizarlo siempre evita que
+    // quede texto residual de una visita anterior. Microtask porque no se
+    // puede mutar un provider durante el build del árbol.
+    Future.microtask(() {
+      if (!mounted) return;
+      ref.read(wantedCardSearchQueryProvider.notifier).state =
+          widget.initialQuery ?? '';
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +66,9 @@ class _PostWantedScreenState extends ConsumerState<PostWantedScreen> {
                     index: _step,
                     children: [
                       _CardSearchStep(
-                          onSelected: (_) => setState(() => _step = 1)),
+                        initialQuery: widget.initialQuery,
+                        onSelected: (_) => setState(() => _step = 1),
+                      ),
                       _ConditionPriceStep(
                         onBack: () => setState(() => _step = 0),
                         onSubmit: _submit,
@@ -162,12 +181,27 @@ class _StepIndicator extends StatelessWidget {
   }
 }
 
-class _CardSearchStep extends ConsumerWidget {
+class _CardSearchStep extends ConsumerStatefulWidget {
+  final String? initialQuery;
   final ValueChanged<CardPrinting> onSelected;
-  const _CardSearchStep({required this.onSelected});
+  const _CardSearchStep({this.initialQuery, required this.onSelected});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_CardSearchStep> createState() => _CardSearchStepState();
+}
+
+class _CardSearchStepState extends ConsumerState<_CardSearchStep> {
+  late final _searchCtrl =
+      TextEditingController(text: widget.initialQuery ?? '');
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final results = ref.watch(wantedCardSearchResultsProvider);
 
     return Column(
@@ -175,6 +209,7 @@ class _CardSearchStep extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.all(16),
           child: SearchBar(
+            controller: _searchCtrl,
             hintText: 'Buscar carta (ej: Jinx)...',
             onChanged: (v) =>
                 ref.read(wantedCardSearchQueryProvider.notifier).state = v,
@@ -200,7 +235,7 @@ class _CardSearchStep extends ConsumerWidget {
                         ref
                             .read(postWantedFormProvider.notifier)
                             .setCardPrinting(items[i]);
-                        onSelected(items[i]);
+                        widget.onSelected(items[i]);
                       },
                     ),
                   ),

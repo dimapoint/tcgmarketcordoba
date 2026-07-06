@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
-/// Estado vacío: ícono + mensaje + CTA opcional.
+/// Estado vacío: ícono + mensaje + CTA opcional (+ acción secundaria).
 class EmptyState extends StatelessWidget {
   final IconData icon;
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final String? secondaryActionLabel;
+  final VoidCallback? onSecondaryAction;
 
   const EmptyState({
     super.key,
@@ -13,6 +15,8 @@ class EmptyState extends StatelessWidget {
     required this.message,
     this.actionLabel,
     this.onAction,
+    this.secondaryActionLabel,
+    this.onSecondaryAction,
   });
 
   @override
@@ -37,6 +41,13 @@ class EmptyState extends StatelessWidget {
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: 20),
               FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
+            if (secondaryActionLabel != null && onSecondaryAction != null) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: onSecondaryAction,
+                child: Text(secondaryActionLabel!),
+              ),
             ],
           ],
         ),

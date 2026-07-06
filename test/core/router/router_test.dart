@@ -72,6 +72,31 @@ void main() {
       expect(uri.queryParameters['from'], '/post');
     });
 
+    test('deslogueado en /wanted/new?q= preserva la query en from', () {
+      final r = computeRedirect(
+        loggedIn: false,
+        hasSeenOnboarding: true,
+        uri: Uri.parse('/wanted/new?q=jinx'),
+        matchedLocation: '/wanted/new',
+      );
+      final uri = Uri.parse(r!);
+      expect(uri.path, '/sign-in');
+      expect(uri.queryParameters['from'], '/wanted/new?q=jinx');
+
+      // Y al volver del sign-in, el from vuelve intacto con la query.
+      expect(
+        computeRedirect(
+          loggedIn: true,
+          hasSeenOnboarding: true,
+          uri: Uri(
+              path: '/sign-in',
+              queryParameters: {'from': '/wanted/new?q=jinx'}),
+          matchedLocation: '/sign-in',
+        ),
+        '/wanted/new?q=jinx',
+      );
+    });
+
     test('deslogueado en rutas públicas -> null', () {
       for (final loc in ['/', '/listings/abc', '/sign-in', '/sign-up']) {
         expect(

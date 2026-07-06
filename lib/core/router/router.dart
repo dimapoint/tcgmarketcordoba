@@ -95,7 +95,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(path: '/',            builder: (c, s) => const BrowseScreen()),
           GoRoute(path: '/wanted',      builder: (c, s) => const WantedScreen()),
-          GoRoute(path: '/wanted/new',  builder: (c, s) => const PostWantedScreen()),
+          GoRoute(path: '/wanted/new',  builder: (c, s) =>
+              PostWantedScreen(initialQuery: s.uri.queryParameters['q'])),
           GoRoute(path: '/post',        builder: (c, s) => const PostListingScreen()),
           GoRoute(path: '/my-listings', builder: (c, s) => const MyListingsScreen()),
           GoRoute(path: '/profile',     builder: (c, s) => const ProfileScreen()),
