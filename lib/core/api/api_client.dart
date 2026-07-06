@@ -57,6 +57,18 @@ class ApiClient {
 
   Future<void> signOut() => _setSession(null);
 
+  /// Canjea un id_token de Google por una sesión propia. El backend crea la
+  /// cuenta si el email no existe todavía.
+  Future<void> signInWithGoogle({required String idToken}) async {
+    final res = await _http.post(
+      Uri.parse('$baseUrl/auth/google'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'id_token': idToken}),
+    );
+    final body = _decode(res) as Map<String, dynamic>;
+    await _setSession(_sessionFromJson(body));
+  }
+
   Future<void> _authenticate(String path, String email, String password) async {
     final res = await _http.post(
       Uri.parse('$baseUrl$path'),

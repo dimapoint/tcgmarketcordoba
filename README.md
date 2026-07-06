@@ -169,6 +169,7 @@ tcgmarketcordoba/
 
 ```env
 API_URL=http://localhost:8080
+GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com   # opcional; habilita "Continuar con Google"
 ```
 
 > ⚠️ Nunca pongas secretos en el `.env` de la raíz — es público (se bundlea en la app).
@@ -183,6 +184,7 @@ SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 RIOT_API_KEY=<key de developer.riotgames.com>                 # sync de catálogo
 PUBLIC_URL=http://localhost:8080                              # base absoluta og:url / og:image
+GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com              # opcional; mismo valor que el del frontend
 # WEB_DIR=                                                    # solo prod: path al build Flutter
 ```
 
@@ -193,7 +195,17 @@ PUBLIC_URL=http://localhost:8080                              # base absoluta og
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | para fotos | Upload a Storage |
 | `RIOT_API_KEY` | para sync | Admin / CLI de catálogo Riftbound |
 | `PUBLIC_URL` | no (default localhost) | URLs absolutas en Open Graph |
+| `GOOGLE_CLIENT_ID` | no | Login con Google (si falta, el botón no aparece) |
 | `WEB_DIR` | no | Si está seteado, el server sirve el SPA + OG |
+
+### Login con Google (opcional)
+
+1. En [Google Cloud Console](https://console.cloud.google.com/apis/credentials) creá un **OAuth client ID** de tipo *Web application*.
+2. En **Authorized JavaScript origins** agregá `http://localhost:5003` (dev) y `https://tcgmarketcordoba.fly.dev` (prod). No hace falta redirect URI (el flujo usa Google Identity Services, no redirects).
+3. Poné el client ID en ambos `.env` (`GOOGLE_CLIENT_ID`); en prod además `fly secrets set GOOGLE_CLIENT_ID=...`.
+4. Aplicá la migración `20260706000001_google_oauth.sql` (permite usuarios sin contraseña).
+
+Si `GOOGLE_CLIENT_ID` está vacío, el botón no se muestra y `POST /auth/google` responde 503. El backend valida el `id_token` contra `oauth2.googleapis.com/tokeninfo` (audiencia + email verificado) y matchea la cuenta por email: si el email ya existe, Google inicia sesión en esa misma cuenta; si no, la crea (con profile, sin contraseña).
 
 ---
 
@@ -265,6 +277,7 @@ Base URL = `API_URL`. Todos los errores devuelven `{"error": "<mensaje en españ
 | `GET /health` | — | Healthcheck |
 | `POST /auth/signup` | — | Registro → `{access_token, refresh_token, user}` |
 | `POST /auth/signin` | — | Login → `{access_token, refresh_token, user}` |
+| `POST /auth/google` | — | Login con Google: `{id_token}` → `{access_token, refresh_token, user}` (crea la cuenta si no existe; 503 si no está configurado) |
 | `POST /auth/refresh` | — | Rota el refresh token → nuevos tokens |
 | `GET /auth/me` | ✔ | Usuario actual |
 

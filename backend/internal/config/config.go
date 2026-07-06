@@ -16,6 +16,7 @@ type Config struct {
 	RiotAPIKey         string
 	WebDir             string
 	PublicURL          string
+	GoogleClientID     string
 }
 
 // Load lee variables de entorno; si existe un archivo .env en el CWD
@@ -31,6 +32,7 @@ func Load() (Config, error) {
 		RiotAPIKey:         os.Getenv("RIOT_API_KEY"),
 		WebDir:             os.Getenv("WEB_DIR"),
 		PublicURL:          strings.TrimSuffix(getenv("PUBLIC_URL", "http://localhost:8080"), "/"),
+		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required")

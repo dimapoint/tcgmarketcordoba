@@ -33,6 +33,17 @@ void main() {
     verify(mockRepo.signIn(email: 'a@b.com', password: '123456')).called(1);
   });
 
+  test('signInWithGoogle calls repository', () async {
+    when(mockRepo.signInWithGoogle('tok')).thenAnswer((_) async {});
+
+    await container
+        .read(authActionsProvider.notifier)
+        .signInWithGoogle('tok');
+
+    verify(mockRepo.signInWithGoogle('tok')).called(1);
+    expect(container.read(authActionsProvider).hasError, isFalse);
+  });
+
   test('signIn sets error state on failure', () async {
     when(mockRepo.signIn(
             email: anyNamed('email'), password: anyNamed('password')))

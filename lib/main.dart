@@ -10,6 +10,7 @@ import 'core/onboarding/onboarding_provider.dart';
 import 'core/onboarding/onboarding_store.dart';
 import 'core/router/router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/google/google_sign_in_section.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +30,7 @@ Future<void> main() async {
     overrides: [
       apiClientProvider.overrideWithValue(api),
       onboardingStoreProvider.overrideWithValue(onboardingStore),
+      googleClientIdProvider.overrideWithValue(dotenv.env['GOOGLE_CLIENT_ID']),
     ],
     child: const App(),
   ));

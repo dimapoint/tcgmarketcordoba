@@ -29,6 +29,13 @@ class AuthActionsNotifier extends AsyncNotifier<void> {
     );
   }
 
+  Future<void> signInWithGoogle(String idToken) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref.read(authRepositoryProvider).signInWithGoogle(idToken),
+    );
+  }
+
   Future<void> signOut() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
