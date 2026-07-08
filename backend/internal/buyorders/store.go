@@ -85,6 +85,29 @@ func (s *PgStore) Active(ctx context.Context, query string) ([]BuyOrder, error) 
 	return out, rows.Err()
 }
 
+// ActiveByBuyer lista las búsquedas activas de un comprador por username
+// (case-insensitive). No integra la interfaz Store: lo consumen sellers y
+// ogmeta vía sus propias interfaces.
+func (s *PgStore) ActiveByBuyer(ctx context.Context, username string) ([]BuyOrder, error) {
+	rows, err := s.pool.Query(ctx, selectBuyOrder+`
+		WHERE bo.status = 'active' AND lower(p.username) = lower($1)
+		ORDER BY bo.created_at DESC`, username)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []BuyOrder{}
+	for rows.Next() {
+		o, err := scanBuyOrder(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, o)
+	}
+	return out, rows.Err()
+}
+
 func (s *PgStore) ByID(ctx context.Context, id string) (BuyOrder, error) {
 	o, err := scanBuyOrder(s.pool.QueryRow(ctx, selectBuyOrder+` WHERE bo.id = $1`, id))
 	if errors.Is(err, pgx.ErrNoRows) || isInvalidUUID(err) {

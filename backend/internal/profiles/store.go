@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -29,6 +30,22 @@ func (s *PgStore) Get(ctx context.Context, id string) (Profile, error) {
 		LEFT JOIN cities ci ON ci.id = p.city_id
 		WHERE p.id = $1`, id,
 	).Scan(&p.ID, &p.Username, &p.CityID, &p.CityName)
+	return p, err
+}
+
+// ByUsername busca un perfil por username (case-insensitive). No integra la
+// interfaz Store: lo consumen sellers y ogmeta vía sus propias interfaces.
+func (s *PgStore) ByUsername(ctx context.Context, username string) (Profile, error) {
+	var p Profile
+	err := s.pool.QueryRow(ctx, `
+		SELECT p.id, p.username, p.city_id, ci.name
+		FROM profiles p
+		LEFT JOIN cities ci ON ci.id = p.city_id
+		WHERE lower(p.username) = lower($1)`, username,
+	).Scan(&p.ID, &p.Username, &p.CityID, &p.CityName)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Profile{}, ErrNotFound
+	}
 	return p, err
 }
 

@@ -17,6 +17,7 @@ import (
 	"tcgmarketcordoba/internal/listings"
 	"tcgmarketcordoba/internal/photos"
 	"tcgmarketcordoba/internal/profiles"
+	"tcgmarketcordoba/internal/sellers"
 	"tcgmarketcordoba/internal/webapp"
 )
 
@@ -46,7 +47,8 @@ func main() {
 	mux.HandleFunc("POST /auth/refresh", authH.Refresh)
 	mux.Handle("GET /auth/me", requireAuth(http.HandlerFunc(authH.Me)))
 
-	listingH := &listings.Handler{Store: listings.NewPgStore(pool)}
+	listingStore := listings.NewPgStore(pool)
+	listingH := &listings.Handler{Store: listingStore}
 	mux.HandleFunc("GET /listings", listingH.List)
 	mux.HandleFunc("GET /listings/{id}", listingH.Get)
 	mux.Handle("POST /listings", requireAuth(http.HandlerFunc(listingH.Create)))
@@ -60,14 +62,16 @@ func main() {
 	}
 	mux.HandleFunc("GET /card-images/{file}", imageProxy.Serve)
 
-	buyOrderH := &buyorders.Handler{Store: buyorders.NewPgStore(pool)}
+	buyOrderStore := buyorders.NewPgStore(pool)
+	buyOrderH := &buyorders.Handler{Store: buyOrderStore}
 	mux.HandleFunc("GET /buy-orders", buyOrderH.List)
 	mux.HandleFunc("GET /buy-orders/{id}", buyOrderH.Get)
 	mux.Handle("POST /buy-orders", requireAuth(http.HandlerFunc(buyOrderH.Create)))
 	mux.Handle("PATCH /buy-orders/{id}", requireAuth(http.HandlerFunc(buyOrderH.Patch)))
 	mux.Handle("GET /me/buy-orders", requireAuth(http.HandlerFunc(buyOrderH.MyBuyOrders)))
 
-	profileH := &profiles.Handler{Store: profiles.NewPgStore(pool)}
+	profileStore := profiles.NewPgStore(pool)
+	profileH := &profiles.Handler{Store: profileStore}
 	mux.HandleFunc("GET /cities", profileH.ListCities)
 	mux.HandleFunc("GET /profiles/{id}/contacts", profileH.SellerContacts)
 	mux.Handle("GET /me/profile", requireAuth(http.HandlerFunc(profileH.Me)))
@@ -75,6 +79,13 @@ func main() {
 	mux.Handle("GET /me/contacts", requireAuth(http.HandlerFunc(profileH.MyContacts)))
 	mux.Handle("PUT /me/contacts", requireAuth(http.HandlerFunc(profileH.PutContact)))
 	mux.Handle("DELETE /me/contacts/{id}", requireAuth(http.HandlerFunc(profileH.DeleteContact)))
+
+	sellerH := &sellers.Handler{
+		Profiles:  profileStore,
+		Listings:  listingStore,
+		BuyOrders: buyOrderStore,
+	}
+	mux.HandleFunc("GET /sellers/{username}", sellerH.Get)
 
 	photoH := &photos.Handler{
 		Store: photos.NewPgStore(pool),

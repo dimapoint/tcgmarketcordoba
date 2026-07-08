@@ -2,7 +2,10 @@ package profiles
 
 import "errors"
 
-var ErrUsernameTaken = errors.New("username taken")
+var (
+	ErrUsernameTaken = errors.New("username taken")
+	ErrNotFound      = errors.New("profile not found")
+)
 
 type Profile struct {
 	ID       string  `json:"id"`

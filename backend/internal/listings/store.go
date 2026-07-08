@@ -93,6 +93,29 @@ func (s *PgStore) Active(ctx context.Context, query string) ([]Listing, error) {
 	return out, rows.Err()
 }
 
+// ActiveBySeller lista las publicaciones activas de un vendedor por username
+// (case-insensitive). No integra la interfaz Store: lo consumen sellers y
+// ogmeta vía sus propias interfaces.
+func (s *PgStore) ActiveBySeller(ctx context.Context, username string) ([]Listing, error) {
+	rows, err := s.pool.Query(ctx, selectListing+`
+		WHERE l.status = 'active' AND lower(p.username) = lower($1)
+		ORDER BY l.created_at DESC`, username)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []Listing{}
+	for rows.Next() {
+		l, err := scanListing(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, l)
+	}
+	return out, rows.Err()
+}
+
 func (s *PgStore) ByID(ctx context.Context, id string) (Listing, error) {
 	l, err := scanListing(s.pool.QueryRow(ctx, selectListing+` WHERE l.id = $1`, id))
 	if errors.Is(err, pgx.ErrNoRows) || isInvalidUUID(err) {
