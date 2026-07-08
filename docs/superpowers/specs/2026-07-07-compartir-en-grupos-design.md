@@ -7,7 +7,7 @@ compartir → preview lindo → landing pública → registrarse para contactar.
 ## Contexto
 
 El browse (`/`), el detalle de listados (`/listings/{id}`) y la sección Busco (`/wanted`,
-`/wanted/{id}`) ya son públicos (solo `/post`, `/wanted/new`, `/my-listings` y `/profile`
+`/buy-orders/{id}`) ya son públicos (solo `/post`, `/wanted/new`, `/my-listings` y `/profile`
 requieren login). Pero un link compartido en WhatsApp hoy se ve como un link pelado: Flutter web
 renderiza en canvas y el crawler de WhatsApp no ve contenido. Además no hay ningún botón de
 compartir en la app, ni una página que agrupe todo lo de un vendedor.
@@ -35,7 +35,7 @@ Tags por ruta:
 | Ruta | og:title | og:description | og:image |
 |---|---|---|---|
 | `/listings/{id}` | `"[Carta] — $[precio] \| TCG Market Córdoba"` | `"Vende [username] en [ciudad] · [condición][ · Foil]"` | primera foto del listado; si no tiene, imagen de catálogo de la carta vía proxy `?w=600` |
-| `/wanted/{id}` | `"Busco: [carta] \| TCG Market Córdoba"` | `"[username] paga hasta $[max_price][ · cantidad N]"` | imagen de catálogo de la carta vía proxy `?w=600`; si no hay, logo |
+| `/buy-orders/{id}` | `"Busco: [carta] \| TCG Market Córdoba"` | `"[username] paga hasta $[max_price][ · cantidad N]"` | imagen de catálogo de la carta vía proxy `?w=600`; si no hay, logo |
 | `/u/{username}` | `"Cartas de [username] en Córdoba"` | `"[N] en venta · [M] búsquedas activas"` | logo del sitio |
 | resto | tags genéricos del sitio | — | logo del sitio |
 
