@@ -23,10 +23,10 @@ const maxImageWidth = 2048
 
 var imageFileRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
-// proxyImagePath convierte una URL del CDN de Riot en la ruta relativa del
+// ProxyImagePath convierte una URL del CDN de Riot en la ruta relativa del
 // proxy ("/card-images/<file>"). Devuelve ok=false si la URL no es del CDN
 // o el nombre de archivo no es un segmento simple.
-func proxyImagePath(raw string) (string, bool) {
+func ProxyImagePath(raw string) (string, bool) {
 	rest, found := strings.CutPrefix(raw, riotCDNPrefix)
 	if !found {
 		return "", false

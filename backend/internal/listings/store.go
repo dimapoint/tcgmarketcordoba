@@ -8,6 +8,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"tcgmarketcordoba/internal/cards"
 )
 
 type Store interface {
@@ -40,7 +42,7 @@ SELECT l.id, l.seller_id, c.name, s.name, cp.is_foil, l.condition::text,
                          ORDER BY lp.display_order)
          FROM listing_photos lp WHERE lp.listing_id = l.id
        ), '[]'::json),
-       l.created_at
+       l.created_at, cp.image_url
 FROM listings l
 JOIN card_printings cp ON cp.id = l.card_printing_id
 JOIN cards c ON c.id = cp.card_id
@@ -52,15 +54,21 @@ JOIN cities ci ON ci.id = l.city_id
 func scanListing(row pgx.Row) (Listing, error) {
 	var l Listing
 	var photosJSON []byte
+	var rawImg *string
 	err := row.Scan(&l.ID, &l.SellerID, &l.CardName, &l.SetName, &l.IsFoil,
 		&l.Condition, &l.Price, &l.Description, &l.Status,
-		&l.SellerUsername, &l.SellerCity, &photosJSON, &l.CreatedAt)
+		&l.SellerUsername, &l.SellerCity, &photosJSON, &l.CreatedAt, &rawImg)
 	if err != nil {
 		return Listing{}, err
 	}
 	l.Photos = []Photo{}
 	if err := json.Unmarshal(photosJSON, &l.Photos); err != nil {
 		return Listing{}, err
+	}
+	if rawImg != nil {
+		if path, ok := cards.ProxyImagePath(*rawImg); ok {
+			l.CardImageURL = &path
+		}
 	}
 	return l, nil
 }

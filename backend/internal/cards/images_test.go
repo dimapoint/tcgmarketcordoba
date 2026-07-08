@@ -39,9 +39,9 @@ func TestProxyImagePath(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		got, ok := proxyImagePath(c.in)
+		got, ok := ProxyImagePath(c.in)
 		if ok != c.ok || (ok && got != c.want) {
-			t.Errorf("%s: proxyImagePath(%q) = (%q, %v), want (%q, %v)",
+			t.Errorf("%s: ProxyImagePath(%q) = (%q, %v), want (%q, %v)",
 				c.name, c.in, got, ok, c.want, c.ok)
 		}
 	}

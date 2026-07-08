@@ -7,6 +7,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"tcgmarketcordoba/internal/cards"
 )
 
 type Store interface {
@@ -33,7 +35,7 @@ func NewPgStore(pool *pgxpool.Pool) *PgStore { return &PgStore{pool: pool} }
 
 const buyOrderColumns = `bo.id, bo.buyer_id, c.name, s.name, cp.is_foil, bo.min_condition::text,
        bo.max_price::float8, bo.quantity, bo.description, bo.status::text,
-       p.username, ci.name, bo.created_at`
+       p.username, ci.name, bo.created_at, cp.image_url`
 
 const buyOrderFrom = `
 FROM buy_orders bo
@@ -48,10 +50,19 @@ const selectBuyOrder = `SELECT ` + buyOrderColumns + buyOrderFrom
 
 func scanBuyOrder(row pgx.Row) (BuyOrder, error) {
 	var o BuyOrder
+	var rawImg *string
 	err := row.Scan(&o.ID, &o.BuyerID, &o.CardName, &o.SetName, &o.IsFoil,
 		&o.MinCondition, &o.MaxPrice, &o.Quantity, &o.Description, &o.Status,
-		&o.BuyerUsername, &o.BuyerCity, &o.CreatedAt)
-	return o, err
+		&o.BuyerUsername, &o.BuyerCity, &o.CreatedAt, &rawImg)
+	if err != nil {
+		return BuyOrder{}, err
+	}
+	if rawImg != nil {
+		if path, ok := cards.ProxyImagePath(*rawImg); ok {
+			o.CardImageURL = &path
+		}
+	}
+	return o, nil
 }
 
 func (s *PgStore) Active(ctx context.Context, query string) ([]BuyOrder, error) {
@@ -84,8 +95,8 @@ func (s *PgStore) ByID(ctx context.Context, id string) (BuyOrder, error) {
 
 // Mine calcula, además de los datos de la orden, cuántos listings activos la
 // matchean hoy (misma carta, precio <= max_price, condición al menos tan
-// buena como min_condition). Por eso usa un scan de 13 columnas en vez del
-// scanBuyOrder base de 12 — no es una inconsistencia a "corregir", es la
+// buena como min_condition). Por eso usa un scan con una columna extra sobre
+// el scanBuyOrder base — no es una inconsistencia a "corregir", es la
 // única query que necesita ese dato agregado.
 const mineQuery = `SELECT ` + buyOrderColumns + `,
 	(SELECT COUNT(*) FROM listings l
@@ -108,11 +119,17 @@ func (s *PgStore) Mine(ctx context.Context, buyerID, status string) ([]BuyOrder,
 	out := []BuyOrder{}
 	for rows.Next() {
 		var o BuyOrder
+		var rawImg *string
 		err := rows.Scan(&o.ID, &o.BuyerID, &o.CardName, &o.SetName, &o.IsFoil,
 			&o.MinCondition, &o.MaxPrice, &o.Quantity, &o.Description, &o.Status,
-			&o.BuyerUsername, &o.BuyerCity, &o.CreatedAt, &o.MatchingListingsCount)
+			&o.BuyerUsername, &o.BuyerCity, &o.CreatedAt, &rawImg, &o.MatchingListingsCount)
 		if err != nil {
 			return nil, err
+		}
+		if rawImg != nil {
+			if path, ok := cards.ProxyImagePath(*rawImg); ok {
+				o.CardImageURL = &path
+			}
 		}
 		out = append(out, o)
 	}

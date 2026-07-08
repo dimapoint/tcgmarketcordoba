@@ -28,5 +28,8 @@ type Listing struct {
 	SellerUsername string    `json:"seller_username"`
 	SellerCity     string    `json:"seller_city"`
 	Photos         []Photo   `json:"photos"`
-	CreatedAt      time.Time `json:"created_at"`
+	// CardImageURL es la imagen de catálogo de la carta (ruta relativa del
+	// proxy /card-images/...), independiente de las fotos del vendedor.
+	CardImageURL *string   `json:"card_image_url"`
+	CreatedAt    time.Time `json:"created_at"`
 }

@@ -23,6 +23,9 @@ type BuyOrder struct {
 	Status        string  `json:"status"`
 	BuyerUsername string  `json:"buyer_username"`
 	BuyerCity     string  `json:"buyer_city"`
+	// CardImageURL es la imagen de catálogo de la carta (ruta relativa del
+	// proxy /card-images/...).
+	CardImageURL *string `json:"card_image_url"`
 	// MatchingListingsCount cuenta listings activos que matchean esta orden
 	// (carta, precio <= max_price, condición al menos tan buena como
 	// min_condition). Solo lo calcula Mine(); Active()/ByID() lo dejan en 0.

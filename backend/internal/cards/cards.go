@@ -79,7 +79,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 		if ps[i].ImageURL == nil {
 			continue
 		}
-		if path, ok := proxyImagePath(*ps[i].ImageURL); ok {
+		if path, ok := ProxyImagePath(*ps[i].ImageURL); ok {
 			ps[i].ImageURL = &path
 		}
 	}
