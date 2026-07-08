@@ -166,7 +166,7 @@ class _MyWantedTile extends ConsumerWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => context.push('/buy-orders/${order.id}'),
+        onTap: () => context.push('/b/${order.id}'),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(

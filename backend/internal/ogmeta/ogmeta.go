@@ -50,8 +50,10 @@ func (r *Resolver) Meta(ctx context.Context, path string) string {
 func (r *Resolver) resolve(ctx context.Context, path string) data {
 	d := r.generic(path)
 	switch {
-	case strings.HasPrefix(path, "/listings/"):
-		id := onlySegment(path, "/listings/")
+	// Los deep links del SPA usan paths cortos propios (/l/, /b/) que no
+	// chocan con las rutas JSON de la API (/listings/{id}, /buy-orders/{id}).
+	case strings.HasPrefix(path, "/l/"):
+		id := onlySegment(path, "/l/")
 		if id == "" {
 			break
 		}
@@ -70,8 +72,8 @@ func (r *Resolver) resolve(ctx context.Context, path string) data {
 		} else if l.CardImageURL != nil {
 			d.image = r.PublicURL + *l.CardImageURL + "?w=600"
 		}
-	case strings.HasPrefix(path, "/buy-orders/"):
-		id := onlySegment(path, "/buy-orders/")
+	case strings.HasPrefix(path, "/b/"):
+		id := onlySegment(path, "/b/")
 		if id == "" {
 			break
 		}

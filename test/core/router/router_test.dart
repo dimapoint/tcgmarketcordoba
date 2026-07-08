@@ -102,6 +102,8 @@ void main() {
         '/',
         '/listings/abc',
         '/buy-orders/abc',
+        '/l/abc',
+        '/b/abc',
         '/u/dima',
         '/sign-in',
         '/sign-up',

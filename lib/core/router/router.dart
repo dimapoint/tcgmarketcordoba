@@ -103,18 +103,29 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/profile',     builder: (c, s) => const ProfileScreen()),
         ],
       ),
+      // Deep links cortos y compartibles: no chocan con las rutas JSON de la
+      // API (/listings/{id}, /buy-orders/{id}) cuando el backend sirve el SPA.
       GoRoute(
-        path: '/listings/:id',
+        path: '/l/:id',
         builder: (c, s) => ListingDetailScreen(id: s.pathParameters['id']!),
       ),
       GoRoute(
-        path: '/buy-orders/:id',
+        path: '/b/:id',
         builder: (c, s) => WantedDetailScreen(id: s.pathParameters['id']!),
       ),
       GoRoute(
         path: '/u/:username',
         builder: (c, s) =>
             SellerScreen(username: s.pathParameters['username']!),
+      ),
+      // Alias viejos (pre path-URLs): redirigen a los paths cortos.
+      GoRoute(
+        path: '/listings/:id',
+        redirect: (c, s) => '/l/${s.pathParameters['id']}',
+      ),
+      GoRoute(
+        path: '/buy-orders/:id',
+        redirect: (c, s) => '/b/${s.pathParameters['id']}',
       ),
       GoRoute(path: '/sign-in',    builder: (c, s) => const SignInScreen()),
       GoRoute(path: '/sign-up',    builder: (c, s) => const SignUpScreen()),

@@ -26,7 +26,7 @@ class _ListingCardState extends State<ListingCard> {
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
       child: GestureDetector(
-        onTap: () => context.push('/listings/${widget.listing.id}'),
+        onTap: () => context.push('/l/${widget.listing.id}'),
         child: AnimatedScale(
           scale: _hovering ? 1.02 : 1.0,
           duration: const Duration(milliseconds: 120),

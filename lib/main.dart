@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/api/api_client.dart';
 import 'core/api/api_provider.dart';
@@ -12,6 +13,9 @@ import 'core/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // URLs con path real (/l/abc) en vez de hash (/#/l/abc): así los links
+  // compartidos llevan la ruta al backend y el preview OG sale por carta.
+  usePathUrlStrategy();
   await dotenv.load();
 
   final prefs = await SharedPreferences.getInstance();

@@ -88,12 +88,12 @@ func newResolver() *Resolver {
 }
 
 func TestListingMeta(t *testing.T) {
-	meta := newResolver().Meta(context.Background(), "/listings/l1")
+	meta := newResolver().Meta(context.Background(), "/l/l1")
 	for _, want := range []string{
 		"Jinx &lt;la Loca&gt; — $ 15.000 | TCG Market Córdoba",
 		"Vende dima en Córdoba · NM · Foil",
 		"https://tcg.example/card-images/jinx.png?w=600",
-		`og:url" content="https://tcg.example/listings/l1"`,
+		`og:url" content="https://tcg.example/l/l1"`,
 	} {
 		if !strings.Contains(meta, want) {
 			t.Errorf("meta sin %q:\n%s", want, meta)
@@ -108,14 +108,14 @@ func TestListingPrefersOwnPhoto(t *testing.T) {
 	l.Photos = []listings.Photo{{URL: "https://storage.example/foto1.jpg"}}
 	fl.byID["l1"] = l
 
-	meta := r.Meta(context.Background(), "/listings/l1")
+	meta := r.Meta(context.Background(), "/l/l1")
 	if !strings.Contains(meta, "https://storage.example/foto1.jpg") {
 		t.Errorf("debería usar la foto propia:\n%s", meta)
 	}
 }
 
 func TestBuyOrderMeta(t *testing.T) {
-	meta := newResolver().Meta(context.Background(), "/buy-orders/b1")
+	meta := newResolver().Meta(context.Background(), "/b/b1")
 	for _, want := range []string{
 		"Busco: Viktor | TCG Market Córdoba",
 		"dima paga hasta $ 8.000 · cantidad 2",
@@ -153,21 +153,21 @@ func TestStoreErrorDegradesToGeneric(t *testing.T) {
 	r := newResolver()
 	r.Listings.(*fakeListings).err = errors.New("db caída")
 
-	meta := r.Meta(context.Background(), "/listings/l1")
+	meta := r.Meta(context.Background(), "/l/l1")
 	if !strings.Contains(meta, "TCG Market Córdoba") || strings.Contains(meta, "Jinx") {
 		t.Errorf("debería degradar a genérica:\n%s", meta)
 	}
 }
 
 func TestNotFoundDegradesToGeneric(t *testing.T) {
-	meta := newResolver().Meta(context.Background(), "/listings/no-existe")
+	meta := newResolver().Meta(context.Background(), "/l/no-existe")
 	if strings.Contains(meta, "Jinx") {
 		t.Errorf("debería degradar a genérica:\n%s", meta)
 	}
 }
 
 func TestSubpathsDontMatch(t *testing.T) {
-	meta := newResolver().Meta(context.Background(), "/listings/l1/extra")
+	meta := newResolver().Meta(context.Background(), "/l/l1/extra")
 	if strings.Contains(meta, "Jinx") {
 		t.Errorf("path con segmentos extra no debe resolver listado:\n%s", meta)
 	}

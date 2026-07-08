@@ -30,7 +30,7 @@ class ListingDetailScreen extends ConsumerWidget {
               tooltip: 'Compartir',
               onPressed: () {
                 final l = listingAsync.value!;
-                final url = '${currentOrigin()}/listings/${l.id}';
+                final url = '${currentOrigin()}/l/${l.id}';
                 shareWithFallback(
                   context,
                   text: listingShareText(l, url),

@@ -30,7 +30,7 @@ class WantedDetailScreen extends ConsumerWidget {
               tooltip: 'Compartir',
               onPressed: () {
                 final o = orderAsync.value!;
-                final url = '${currentOrigin()}/buy-orders/${o.id}';
+                final url = '${currentOrigin()}/b/${o.id}';
                 shareWithFallback(
                   context,
                   text: wantedShareText(o, url),

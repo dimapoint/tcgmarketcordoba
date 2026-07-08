@@ -123,7 +123,7 @@ class _ListingTile extends ConsumerWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => context.push('/listings/${listing.id}'),
+        onTap: () => context.push('/l/${listing.id}'),
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Row(

@@ -159,7 +159,7 @@ class _ListingTile extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: ListTile(
-        onTap: () => context.push('/listings/${listing.id}'),
+        onTap: () => context.push('/l/${listing.id}'),
         leading: firstPhoto == null
             ? const Icon(Icons.style_outlined)
             : ClipRRect(
@@ -197,7 +197,7 @@ class _WantedTile extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: ListTile(
-        onTap: () => context.push('/buy-orders/${order.id}'),
+        onTap: () => context.push('/b/${order.id}'),
         leading: const Icon(Icons.search_outlined),
         title: Text(order.cardName),
         subtitle: Text('hasta ${PriceText.format(order.maxPrice)}'),

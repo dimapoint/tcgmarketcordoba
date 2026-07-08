@@ -122,6 +122,20 @@ Reglas:
 - E2E: el smoke del driver agrega un paso que verifica que `GET /listings/{id}` (HTML)
   contiene `og:title`.
 
+## Ajuste durante implementación: path URLs y deep links cortos
+
+Al implementar se detectó que la app usaba **hash URLs** (`/#/listings/x`), lo que invalidaba
+la premisa del feature: los crawlers descartan el fragment (siempre verían tags genéricos) y
+un link con path real `/listings/{id}` lo atiende la ruta JSON de la API, no el SPA.
+
+Solución aplicada:
+
+- `usePathUrlStrategy()` en `main.dart` (no-op fuera de web).
+- Deep links compartibles cortos y libres de colisión con la API: **`/l/{id}`** (listado),
+  **`/b/{id}`** (búsqueda), `/u/{username}` (vendedor). GoRouter mantiene `/listings/:id` y
+  `/buy-orders/:id` como redirects client-side.
+- `ogmeta` resuelve `/l/`, `/b/` y `/u/`; los botones de compartir arman URLs con esos paths.
+
 ## Fuera de alcance
 
 Página pública por carta, SEO/sitemap, Google OAuth (PR #3 sigue su camino aparte),
