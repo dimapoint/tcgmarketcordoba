@@ -47,6 +47,15 @@ function Wait-Healthy {
 function Invoke-Start {
   $pids = @{ backend = $null; web = $null }
 
+  # El build web va ANTES de arrancar el backend: con WEB_DIR seteado, el Go
+  # lee build/web/index.html al inicio para la inyección de meta tags OG.
+  $indexHtml = Join-Path $RepoRoot 'build\web\index.html'
+  if (-not $BackendOnly -and ($Build -or -not (Test-Path $indexHtml))) {
+    Write-Host 'web: flutter build web --release (tarda ~1 min)...'
+    Push-Location $RepoRoot
+    try { flutter build web --release } finally { Pop-Location }
+  }
+
   if (Test-PortListening 8080) {
     Write-Host 'backend: ya hay algo escuchando en :8080, lo reuso'
   } else {
@@ -54,9 +63,15 @@ function Invoke-Start {
     $serverExe = Join-Path $StateDir 'server.exe'
     Push-Location (Join-Path $RepoRoot 'backend')
     try { go build -o $serverExe . } finally { Pop-Location }
-    # WorkingDirectory backend/ para que encuentre backend/.env
-    $p = Start-Process $serverExe -WorkingDirectory (Join-Path $RepoRoot 'backend') `
-      -WindowStyle Hidden -PassThru
+    # WorkingDirectory backend/ para que encuentre backend/.env. Con WEB_DIR
+    # el mismo server sirve el SPA (como en prod) y se puede probar OG local.
+    if (-not $BackendOnly) { $env:WEB_DIR = Join-Path $RepoRoot 'build\web' }
+    try {
+      $p = Start-Process $serverExe -WorkingDirectory (Join-Path $RepoRoot 'backend') `
+        -WindowStyle Hidden -PassThru
+    } finally {
+      if (-not $BackendOnly) { Remove-Item Env:WEB_DIR -ErrorAction SilentlyContinue }
+    }
     $pids.backend = $p.Id
     Write-Host "backend: pid $($p.Id)"
   }
@@ -68,12 +83,6 @@ function Invoke-Start {
     return
   }
 
-  $indexHtml = Join-Path $RepoRoot 'build\web\index.html'
-  if ($Build -or -not (Test-Path $indexHtml)) {
-    Write-Host 'web: flutter build web --release (tarda ~1 min)...'
-    Push-Location $RepoRoot
-    try { flutter build web --release } finally { Pop-Location }
-  }
   if (Test-PortListening 5003) {
     Write-Host 'web: ya hay algo escuchando en :5003, lo reuso'
   } else {
@@ -172,10 +181,21 @@ function Invoke-Smoke {
   if (-not ($active | Where-Object { $_.id -eq $created.id })) { throw 'el listing creado no aparece en GET /listings' }
   Write-Host '5. listing visible en el browse público'
 
+  # OG previews: el HTML de un deep link del SPA debe traer og:title con la
+  # carta (requiere backend con WEB_DIR; el driver lo setea en start)
+  $og = (Invoke-WebRequest "$ApiUrl/l/$($created.id)" -UseBasicParsing).Content
+  if ($og -notmatch 'og:title') { throw 'smoke: falta og:title en el index inyectado' }
+  if ($og -notmatch [regex]::Escape($printing.card_name)) { throw "smoke: og:title no menciona $($printing.card_name)" }
+  Write-Host '6. OG preview del listing OK (og:title con la carta)'
+
+  $sellerPage = Invoke-RestMethod "$ApiUrl/sellers/$($auth.user.username ?? 'smoke')"
+  if ($null -eq $sellerPage.profile.username) { throw 'smoke: /sellers/{username} sin profile' }
+  Write-Host "7. pagina de vendedor OK (/sellers/$($sellerPage.profile.username))"
+
   Write-Host '--- smoke: UI (screenshots con el listing visible) ---'
   $wide   = Invoke-Shot "$WebUrl/" 1600 900 (Join-Path $ShotsDir 'smoke-browse-wide.png')
   $mobile = Invoke-Shot "$WebUrl/" 400 866 (Join-Path $ShotsDir 'smoke-browse-mobile.png')
-  $detail = Invoke-Shot "$WebUrl/#/listings/$($created.id)" 1600 900 (Join-Path $ShotsDir 'smoke-detail-wide.png')
+  $detail = Invoke-Shot "$ApiUrl/l/$($created.id)" 1600 900 (Join-Path $ShotsDir 'smoke-detail-wide.png')
 
   # cleanup: sacar el listing de smoke del browse
   $patch = @{ status = 'removed' } | ConvertTo-Json
