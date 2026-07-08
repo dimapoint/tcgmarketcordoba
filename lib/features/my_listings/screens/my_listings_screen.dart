@@ -2,7 +2,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../features/profile/profile_provider.dart';
 import '../../../shared/models/listing.dart';
+import '../../../shared/share/share.dart';
 import '../../../shared/widgets/condition_badge.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/price_text.dart';
@@ -26,9 +28,35 @@ class MyListingsScreen extends ConsumerWidget {
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                    child: Text(
-                      'Mis publicaciones',
-                      style: Theme.of(context).textTheme.headlineSmall,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Mis publicaciones',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.share_outlined),
+                          tooltip: 'Compartir mi carpeta',
+                          onPressed: () async {
+                            final profile =
+                                await ref.read(profileProvider.future);
+                            final username = profile?.username;
+                            if (username == null ||
+                                username.isEmpty ||
+                                !context.mounted) {
+                              return;
+                            }
+                            final url = '${currentOrigin()}/u/$username';
+                            await shareWithFallback(
+                              context,
+                              text: binderShareText(url),
+                              url: url,
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ),
                   const TabBar(
