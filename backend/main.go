@@ -15,6 +15,7 @@ import (
 	"tcgmarketcordoba/internal/db"
 	"tcgmarketcordoba/internal/httpx"
 	"tcgmarketcordoba/internal/listings"
+	"tcgmarketcordoba/internal/ogmeta"
 	"tcgmarketcordoba/internal/photos"
 	"tcgmarketcordoba/internal/profiles"
 	"tcgmarketcordoba/internal/sellers"
@@ -100,7 +101,13 @@ func main() {
 	// En producción el mismo server sirve el build web de Flutter; las rutas
 	// de API registradas arriba tienen precedencia sobre el catch-all "/".
 	if cfg.WebDir != "" {
-		mux.Handle("/", webapp.Handler(cfg.WebDir))
+		og := &ogmeta.Resolver{
+			Listings:  listingStore,
+			BuyOrders: buyOrderStore,
+			Profiles:  profileStore,
+			PublicURL: cfg.PublicURL,
+		}
+		mux.Handle("/", webapp.Handler(cfg.WebDir, og.Meta))
 	}
 
 	log.Printf("API listening on :%s", cfg.Port)
