@@ -10,6 +10,34 @@ func TestLoadRequiresDatabaseURL(t *testing.T) {
 	}
 }
 
+func TestPublicURLDefault(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://x")
+	t.Setenv("JWT_SECRET", "s")
+	t.Setenv("PUBLIC_URL", "")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PublicURL != "http://localhost:8080" {
+		t.Errorf("PublicURL = %q", cfg.PublicURL)
+	}
+}
+
+func TestPublicURLFromEnvTrimsTrailingSlash(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://x")
+	t.Setenv("JWT_SECRET", "s")
+	t.Setenv("PUBLIC_URL", "https://tcgmarketcordoba.fly.dev/")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PublicURL != "https://tcgmarketcordoba.fly.dev" {
+		t.Errorf("PublicURL = %q", cfg.PublicURL)
+	}
+}
+
 func TestLoadDefaultsPort(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://x")
 	t.Setenv("JWT_SECRET", "s")

@@ -15,6 +15,7 @@ type Config struct {
 	SupabaseServiceKey string
 	RiotAPIKey         string
 	WebDir             string
+	PublicURL          string
 }
 
 // Load lee variables de entorno; si existe un archivo .env en el CWD
@@ -29,6 +30,7 @@ func Load() (Config, error) {
 		SupabaseServiceKey: os.Getenv("SUPABASE_SERVICE_ROLE_KEY"),
 		RiotAPIKey:         os.Getenv("RIOT_API_KEY"),
 		WebDir:             os.Getenv("WEB_DIR"),
+		PublicURL:          strings.TrimSuffix(getenv("PUBLIC_URL", "http://localhost:8080"), "/"),
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required")
