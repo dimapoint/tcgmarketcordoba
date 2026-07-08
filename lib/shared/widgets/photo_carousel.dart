@@ -4,7 +4,11 @@ import '../models/listing.dart';
 
 class PhotoCarousel extends StatefulWidget {
   final List<ListingPhoto> photos;
-  const PhotoCarousel({super.key, required this.photos});
+
+  /// Imagen de catálogo de la carta: se muestra cuando el vendedor no subió
+  /// fotos propias, en lugar del placeholder genérico.
+  final String? fallbackImageUrl;
+  const PhotoCarousel({super.key, required this.photos, this.fallbackImageUrl});
 
   @override
   State<PhotoCarousel> createState() => _PhotoCarouselState();
@@ -18,11 +22,14 @@ class _PhotoCarouselState extends State<PhotoCarousel> {
     final scheme = Theme.of(context).colorScheme;
 
     if (widget.photos.isEmpty) {
+      final fallback = widget.fallbackImageUrl;
       return AspectRatio(
         aspectRatio: 1,
         child: ColoredBox(
           color: scheme.surfaceContainerHighest,
-          child: Icon(Icons.style_outlined, size: 64, color: scheme.outline),
+          child: fallback != null
+              ? CachedNetworkImage(imageUrl: fallback, fit: BoxFit.contain)
+              : Icon(Icons.style_outlined, size: 64, color: scheme.outline),
         ),
       );
     }

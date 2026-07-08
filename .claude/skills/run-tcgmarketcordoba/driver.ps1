@@ -119,7 +119,12 @@ function Invoke-Shot([string]$ShotUrl, [int]$W, [int]$H, [string]$OutFile) {
   # perfil default, el modo headless termina silenciosamente sin generar nada.
   # Args como strings pre-armados: PowerShell parte `--flag=(expr)` y
   # `--window-size=$W,$H` (la coma arma un array) en argumentos separados.
+  # Perfil descartable: si persiste entre corridas, su disk cache sirve el
+  # main.dart.js viejo y los screenshots muestran un build anterior.
   $profileDir = Join-Path $StateDir 'chrome-profile'
+  if (Test-Path $profileDir) {
+    Remove-Item $profileDir -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+  }
   $chromeArgs = @(
     '--headless=new', '--disable-gpu',
     "--user-data-dir=$profileDir",

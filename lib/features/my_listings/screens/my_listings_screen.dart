@@ -119,6 +119,7 @@ class _ListingTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final firstPhoto = listing.photos.isNotEmpty ? listing.photos.first : null;
+    final thumb = firstPhoto?.url ?? listing.cardImageThumb(120);
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -133,9 +134,9 @@ class _ListingTile extends ConsumerWidget {
                 child: SizedBox(
                   width: 56,
                   height: 56,
-                  child: firstPhoto != null
+                  child: thumb != null
                       ? CachedNetworkImage(
-                          imageUrl: firstPhoto.url,
+                          imageUrl: thumb,
                           fit: BoxFit.cover,
                           placeholder: (_, _) => ColoredBox(
                               color: scheme.surfaceContainerHighest),

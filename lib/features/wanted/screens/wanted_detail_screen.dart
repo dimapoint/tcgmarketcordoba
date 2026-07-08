@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -58,13 +59,40 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     final isWide =
         MediaQuery.sizeOf(context).width >= AppTheme.mobileBreakpoint;
+    final image = order.cardImageThumb(400);
+
+    final info = _Info(order: order, isLoggedIn: isLoggedIn);
+    final card = image == null
+        ? null
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: CachedNetworkImage(imageUrl: image, width: 220),
+          );
 
     return SingleChildScrollView(
       child: CenteredMaxWidth(
         maxWidth: 700,
         child: Padding(
           padding: EdgeInsets.all(isWide ? 24 : 16),
-          child: _Info(order: order, isLoggedIn: isLoggedIn),
+          child: card == null
+              ? info
+              : isWide
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        card,
+                        const SizedBox(width: 24),
+                        Expanded(child: info),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(child: card),
+                        const SizedBox(height: 16),
+                        info,
+                      ],
+                    ),
         ),
       ),
     );

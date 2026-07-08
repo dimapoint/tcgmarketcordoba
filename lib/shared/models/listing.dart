@@ -1,3 +1,5 @@
+import '../../core/api/api_urls.dart';
+
 class ListingPhoto {
   final String url;
   final int displayOrder;
@@ -22,6 +24,10 @@ class Listing {
   final String sellerUsername;
   final String sellerCity;
   final List<ListingPhoto> photos;
+
+  /// Imagen de catálogo de la carta (proxy /card-images), fallback visual
+  /// cuando el vendedor no subió fotos propias.
+  final String? cardImageUrl;
   final DateTime createdAt;
 
   const Listing({
@@ -37,6 +43,7 @@ class Listing {
     required this.sellerUsername,
     required this.sellerCity,
     required this.photos,
+    this.cardImageUrl,
     required this.createdAt,
   });
 
@@ -55,6 +62,9 @@ class Listing {
         photos: (j['photos'] as List<dynamic>? ?? [])
             .map((p) => ListingPhoto.fromJson(p as Map<String, dynamic>))
             .toList(),
+        cardImageUrl: j['card_image_url'] as String?,
         createdAt: DateTime.parse(j['created_at'] as String),
       );
+
+  String? cardImageThumb(int width) => imageWithWidth(cardImageUrl, width);
 }

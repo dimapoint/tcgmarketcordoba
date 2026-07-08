@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/api_provider.dart';
+import '../../core/api/api_urls.dart';
 import '../../shared/models/wanted_order.dart';
 
 abstract class WantedRepository {
@@ -19,14 +20,22 @@ class ApiWantedRepository implements WantedRepository {
       query: (query == null || query.isEmpty) ? null : {'query': query},
     );
     return (data as List)
-        .map((j) => WantedOrder.fromJson(j as Map<String, dynamic>))
+        .map((j) => _fromJson(j as Map<String, dynamic>))
         .toList();
   }
 
   @override
   Future<WantedOrder> fetchById(String id) async {
     final data = await _api.get('/buy-orders/$id');
-    return WantedOrder.fromJson(data as Map<String, dynamic>);
+    return _fromJson(data as Map<String, dynamic>);
+  }
+
+  // El backend manda card_image_url relativa (/card-images/...): la sirve él
+  // mismo como proxy del CDN de Riot, que no habilita CORS.
+  WantedOrder _fromJson(Map<String, dynamic> json) {
+    json['card_image_url'] =
+        absoluteApiUrl(json['card_image_url'] as String?, _api.baseUrl);
+    return WantedOrder.fromJson(json);
   }
 }
 

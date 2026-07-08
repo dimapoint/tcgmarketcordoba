@@ -1,3 +1,5 @@
+import '../../core/api/api_urls.dart';
+
 class WantedOrder {
   final String id;
   final String buyerId;
@@ -12,6 +14,9 @@ class WantedOrder {
   final String buyerUsername;
   final String buyerCity;
   final int matchingListingsCount;
+
+  /// Imagen de catálogo de la carta buscada (proxy /card-images).
+  final String? cardImageUrl;
   final DateTime createdAt;
 
   const WantedOrder({
@@ -28,6 +33,7 @@ class WantedOrder {
     required this.buyerUsername,
     required this.buyerCity,
     this.matchingListingsCount = 0,
+    this.cardImageUrl,
     required this.createdAt,
   });
 
@@ -45,6 +51,9 @@ class WantedOrder {
         buyerUsername: j['buyer_username'] as String,
         buyerCity: j['buyer_city'] as String,
         matchingListingsCount: j['matching_listings_count'] as int? ?? 0,
+        cardImageUrl: j['card_image_url'] as String?,
         createdAt: DateTime.parse(j['created_at'] as String),
       );
+
+  String? cardImageThumb(int width) => imageWithWidth(cardImageUrl, width);
 }

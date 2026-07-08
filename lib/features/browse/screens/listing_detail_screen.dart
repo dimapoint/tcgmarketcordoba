@@ -59,7 +59,10 @@ class _Body extends StatelessWidget {
     final isWide =
         MediaQuery.sizeOf(context).width >= AppTheme.mobileBreakpoint;
 
-    final photos = PhotoCarousel(photos: listing.photos);
+    final photos = PhotoCarousel(
+      photos: listing.photos,
+      fallbackImageUrl: listing.cardImageThumb(800),
+    );
     final info = _Info(listing: listing, isLoggedIn: isLoggedIn);
 
     return SingleChildScrollView(

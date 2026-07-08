@@ -45,6 +45,8 @@ class _CardBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final firstPhoto = listing.photos.isNotEmpty ? listing.photos.first : null;
+    // Sin fotos del vendedor se muestra la imagen de catálogo de la carta.
+    final imageUrl = firstPhoto?.url ?? listing.cardImageThumb(400);
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -52,9 +54,9 @@ class _CardBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: firstPhoto != null
+            child: imageUrl != null
                 ? CachedNetworkImage(
-                    imageUrl: firstPhoto.url,
+                    imageUrl: imageUrl,
                     fit: BoxFit.cover,
                     width: double.infinity,
                     placeholder: (_, _) => ColoredBox(

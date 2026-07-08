@@ -155,17 +155,18 @@ class _ListingTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final firstPhoto =
         listing.photos.isNotEmpty ? listing.photos.first.url : null;
+    final thumb = firstPhoto ?? listing.cardImageThumb(120);
 
     return Card(
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         onTap: () => context.push('/l/${listing.id}'),
-        leading: firstPhoto == null
+        leading: thumb == null
             ? const Icon(Icons.style_outlined)
             : ClipRRect(
                 borderRadius: BorderRadius.circular(6),
                 child: CachedNetworkImage(
-                  imageUrl: firstPhoto,
+                  imageUrl: thumb,
                   width: 40,
                   height: 40,
                   fit: BoxFit.cover,
@@ -194,11 +195,23 @@ class _WantedTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final thumb = order.cardImageThumb(120);
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         onTap: () => context.push('/b/${order.id}'),
-        leading: const Icon(Icons.search_outlined),
+        leading: thumb == null
+            ? const Icon(Icons.search_outlined)
+            : ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: CachedNetworkImage(
+                  imageUrl: thumb,
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.cover,
+                ),
+              ),
         title: Text(order.cardName),
         subtitle: Text('hasta ${PriceText.format(order.maxPrice)}'),
       ),

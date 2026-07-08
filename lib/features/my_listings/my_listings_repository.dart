@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/api_provider.dart';
+import '../../core/api/api_urls.dart';
 import '../../shared/models/listing.dart';
 
 abstract class MyListingsRepository {
@@ -20,9 +21,12 @@ class ApiMyListingsRepository implements MyListingsRepository {
     // sellerId sale del JWT en el backend; el parámetro queda por compatibilidad
     final data =
         await _api.get('/me/listings', query: {'status': status}, auth: true);
-    return (data as List)
-        .map((j) => Listing.fromJson(j as Map<String, dynamic>))
-        .toList();
+    return (data as List).map((j) {
+      final json = j as Map<String, dynamic>;
+      json['card_image_url'] =
+          absoluteApiUrl(json['card_image_url'] as String?, _api.baseUrl);
+      return Listing.fromJson(json);
+    }).toList();
   }
 
   @override
