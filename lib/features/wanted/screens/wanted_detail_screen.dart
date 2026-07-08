@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../features/auth/auth_provider.dart';
 import '../../../features/browse/listing_provider.dart' show sellerContactsProvider;
 import '../../../shared/models/wanted_order.dart';
+import '../../../shared/share/share.dart';
 import '../../../shared/widgets/condition_badge.dart';
 import '../../../shared/widgets/max_width.dart';
 import '../../../shared/widgets/price_text.dart';
@@ -21,7 +22,24 @@ class WantedDetailScreen extends ConsumerWidget {
     final session = ref.watch(authSessionProvider).valueOrNull;
 
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        actions: [
+          if (orderAsync.valueOrNull != null)
+            IconButton(
+              icon: const Icon(Icons.share_outlined),
+              tooltip: 'Compartir',
+              onPressed: () {
+                final o = orderAsync.value!;
+                final url = '${currentOrigin()}/buy-orders/${o.id}';
+                shareWithFallback(
+                  context,
+                  text: wantedShareText(o, url),
+                  url: url,
+                );
+              },
+            ),
+        ],
+      ),
       body: orderAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),

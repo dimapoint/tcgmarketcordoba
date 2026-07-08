@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../features/auth/auth_provider.dart';
 import '../../../shared/models/listing.dart';
+import '../../../shared/share/share.dart';
 import '../../../shared/widgets/condition_badge.dart';
 import '../../../shared/widgets/max_width.dart';
 import '../../../shared/widgets/photo_carousel.dart';
@@ -21,7 +22,24 @@ class ListingDetailScreen extends ConsumerWidget {
     final session = ref.watch(authSessionProvider).valueOrNull;
 
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        actions: [
+          if (listingAsync.valueOrNull != null)
+            IconButton(
+              icon: const Icon(Icons.share_outlined),
+              tooltip: 'Compartir',
+              onPressed: () {
+                final l = listingAsync.value!;
+                final url = '${currentOrigin()}/listings/${l.id}';
+                shareWithFallback(
+                  context,
+                  text: listingShareText(l, url),
+                  url: url,
+                );
+              },
+            ),
+        ],
+      ),
       body: listingAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
