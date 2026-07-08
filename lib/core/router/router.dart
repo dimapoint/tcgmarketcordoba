@@ -12,6 +12,7 @@ import '../../features/onboarding/screens/onboarding_screen.dart';
 import '../../features/post_listing/screens/post_listing_screen.dart';
 import '../../features/post_wanted/screens/post_wanted_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/seller/screens/seller_screen.dart';
 import '../../features/wanted/screens/wanted_detail_screen.dart';
 import '../../features/wanted/screens/wanted_screen.dart';
 import '../../shared/widgets/scaffold_with_nav.dart';
@@ -109,6 +110,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/buy-orders/:id',
         builder: (c, s) => WantedDetailScreen(id: s.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/u/:username',
+        builder: (c, s) =>
+            SellerScreen(username: s.pathParameters['username']!),
       ),
       GoRoute(path: '/sign-in',    builder: (c, s) => const SignInScreen()),
       GoRoute(path: '/sign-up',    builder: (c, s) => const SignUpScreen()),

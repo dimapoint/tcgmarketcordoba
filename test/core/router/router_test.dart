@@ -98,7 +98,14 @@ void main() {
     });
 
     test('deslogueado en rutas públicas -> null', () {
-      for (final loc in ['/', '/listings/abc', '/sign-in', '/sign-up']) {
+      for (final loc in [
+        '/',
+        '/listings/abc',
+        '/buy-orders/abc',
+        '/u/dima',
+        '/sign-in',
+        '/sign-up',
+      ]) {
         expect(
           computeRedirect(
             loggedIn: false,
