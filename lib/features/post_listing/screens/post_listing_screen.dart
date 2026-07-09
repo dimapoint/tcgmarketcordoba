@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/price_reference_hint.dart';
 import '../photo_repository.dart';
 import '../post_listing_provider.dart';
 import '../post_listing_repository.dart';
@@ -352,6 +353,8 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
 
   @override
   Widget build(BuildContext context) {
+    final form = ref.watch(postListingFormProvider);
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -386,6 +389,15 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
               ref.read(postListingFormProvider.notifier).setPrice(d);
             },
           ),
+          if (form.cardPrinting != null)
+            PriceReferenceHint(
+              printingId: form.cardPrinting!.id,
+              onSuggest: (ars) {
+                // setState: el botón "Siguiente" lee _priceCtrl.text directo
+                setState(() => _priceCtrl.text = ars.round().toString());
+                ref.read(postListingFormProvider.notifier).setPrice(ars);
+              },
+            ),
           const SizedBox(height: 16),
           TextField(
             controller: _descCtrl,

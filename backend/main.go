@@ -17,6 +17,7 @@ import (
 	"tcgmarketcordoba/internal/listings"
 	"tcgmarketcordoba/internal/ogmeta"
 	"tcgmarketcordoba/internal/photos"
+	"tcgmarketcordoba/internal/prices"
 	"tcgmarketcordoba/internal/profiles"
 	"tcgmarketcordoba/internal/sellers"
 	"tcgmarketcordoba/internal/webapp"
@@ -62,6 +63,13 @@ func main() {
 		CacheDir: filepath.Join(os.TempDir(), "tcgmarket-card-images"),
 	}
 	mux.HandleFunc("GET /card-images/{file}", imageProxy.Serve)
+
+	priceH := &prices.Handler{
+		Store:  prices.NewPgStore(pool),
+		Market: &prices.TCGCsv{},
+		Rate:   &prices.DolarAPI{},
+	}
+	mux.HandleFunc("GET /card-printings/{id}/price-reference", priceH.PriceReference)
 
 	buyOrderStore := buyorders.NewPgStore(pool)
 	buyOrderH := &buyorders.Handler{Store: buyOrderStore}

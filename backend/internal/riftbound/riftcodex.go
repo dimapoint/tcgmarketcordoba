@@ -39,6 +39,7 @@ type rcSet struct {
 type rcCard struct {
 	Name            string `json:"name"`
 	RiftboundID     string `json:"riftbound_id"`
+	TCGPlayerID     string `json:"tcgplayer_id"`
 	CollectorNumber int64  `json:"collector_number"`
 	Attributes      struct {
 		Energy *int64 `json:"energy"`
@@ -190,6 +191,7 @@ func mapRiftcodexCard(rc rcCard, keywords map[string]string) Card {
 	}
 	return Card{
 		ID:              strings.ToUpper(rc.RiftboundID),
+		TCGPlayerID:     rc.TCGPlayerID,
 		CollectorNumber: rc.CollectorNumber,
 		Number:          number,
 		Name:            name,

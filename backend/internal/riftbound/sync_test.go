@@ -82,7 +82,8 @@ func testContent() *Content {
 			Cards: []Card{
 				{
 					ID: "OGN-030", CollectorNumber: 30, Set: "OGN",
-					Name: "Jinx, Demolitionist", Description: "Boom desc.",
+					TCGPlayerID: "635366",
+					Name:        "Jinx, Demolitionist", Description: "Boom desc.",
 					Type: "CHAMPION", Rarity: "EPIC", Faction: "FURY,CHAOS",
 					Stats:    Stats{Energy: i64(3), Might: i64(4), Power: i64(2)},
 					Keywords: []string{"ACCELERATE"},
@@ -230,6 +231,9 @@ func TestSyncMapsAndUpserts(t *testing.T) {
 		epic.Artist == nil || *epic.Artist != "Alguien" {
 		t.Errorf("epic art = %+v", epic)
 	}
+	if epic.TCGPlayerID == nil || *epic.TCGPlayerID != "635366" {
+		t.Errorf("epic tcgplayer_id = %v, want 635366", epic.TCGPlayerID)
+	}
 	altArt := store.printings[1]
 	if altArt.CardNumber != "320a" || !altArt.IsFoil ||
 		altArt.RarityID != "rarity:Alternate Art" ||
@@ -242,6 +246,10 @@ func TestSyncMapsAndUpserts(t *testing.T) {
 	rare := store.printings[2]
 	if rare.CardNumber != "251" || !rare.IsFoil || rare.RarityID != "rarity:Rare" {
 		t.Errorf("rare = %+v", rare)
+	}
+	// carta sin tcgplayer_id (fuente Riot) → nil, no string vacío
+	if rare.TCGPlayerID != nil {
+		t.Errorf("rare tcgplayer_id = %v, want nil", rare.TCGPlayerID)
 	}
 	common, commonFoil := store.printings[3], store.printings[4]
 	if common.CardNumber != "012" || common.IsFoil || common.RarityID != "rarity:Common" {

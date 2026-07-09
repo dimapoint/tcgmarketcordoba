@@ -53,4 +53,37 @@ void main() {
     final result = await repo.search('jinx');
     expect(result.single.imageUrl, isNull);
   });
+
+  test('priceReference pega al endpoint y parsea la respuesta', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    late Uri requested;
+    final mock = MockClient((req) async {
+      requested = req.url;
+      return http.Response(
+        jsonEncode({
+          'market_usd': 15.26,
+          'market_ars': 23000,
+          'fx_rate': 1510,
+          'is_foil': true,
+          'local_active_count': 3,
+          'local_min_price': 10000,
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+    final api = ApiClient(
+        baseUrl: 'http://api.local',
+        tokens: TokenStore(prefs),
+        httpClient: mock);
+    final repo = ApiCardRepository(api);
+
+    final ref = await repo.priceReference('cp-9');
+
+    expect(requested.path, '/card-printings/cp-9/price-reference');
+    expect(ref.marketUsd, 15.26);
+    expect(ref.marketArs, 23000);
+    expect(ref.localActiveCount, 3);
+  });
 }

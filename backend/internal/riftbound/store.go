@@ -130,17 +130,18 @@ func (s *PgStore) UpsertPrinting(ctx context.Context, p PrintingRow) (bool, erro
 	var created bool
 	err := s.tx.QueryRow(ctx, `
 		INSERT INTO card_printings (card_id, set_id, card_number, is_foil, rarity_id,
-		                            riot_card_id, image_url, thumbnail_url, artist)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		                            riot_card_id, tcgplayer_id, image_url, thumbnail_url, artist)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (set_id, card_number, is_foil) DO UPDATE SET
 			card_id = EXCLUDED.card_id,
 			rarity_id = EXCLUDED.rarity_id,
 			riot_card_id = EXCLUDED.riot_card_id,
+			tcgplayer_id = COALESCE(EXCLUDED.tcgplayer_id, card_printings.tcgplayer_id),
 			image_url = EXCLUDED.image_url,
 			thumbnail_url = EXCLUDED.thumbnail_url,
 			artist = EXCLUDED.artist
 		RETURNING (xmax = 0)`,
 		p.CardID, p.SetID, p.CardNumber, p.IsFoil, p.RarityID,
-		p.RiotCardID, p.ImageURL, p.ThumbnailURL, p.Artist).Scan(&created)
+		p.RiotCardID, p.TCGPlayerID, p.ImageURL, p.ThumbnailURL, p.Artist).Scan(&created)
 	return created, err
 }

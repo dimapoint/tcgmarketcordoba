@@ -36,6 +36,9 @@ type Card struct {
 	// Number es el número impreso como string ("060a" en alt-arts). La API de
 	// Riot no lo trae; si queda vacío, Sync usa %03d del CollectorNumber.
 	Number string `json:"-"`
+	// TCGPlayerID enlaza con el producto de TCGplayer para precios de
+	// mercado (tcgcsv). Solo riftcodex lo trae; vacío → NULL en la base.
+	TCGPlayerID string `json:"-"`
 	Set             string   `json:"set"`
 	Name            string   `json:"name"`
 	Description     string   `json:"description"`

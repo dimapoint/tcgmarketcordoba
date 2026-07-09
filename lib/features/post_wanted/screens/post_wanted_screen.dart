@@ -6,6 +6,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/card_printing.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/price_reference_hint.dart';
 import '../post_wanted_provider.dart';
 import '../post_wanted_repository.dart';
 
@@ -402,6 +403,14 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
               ref.read(postWantedFormProvider.notifier).setMaxPrice(d);
             },
           ),
+          if (form.cardPrinting != null)
+            PriceReferenceHint(
+              printingId: form.cardPrinting!.id,
+              onSuggest: (ars) {
+                _priceCtrl.text = ars.round().toString();
+                ref.read(postWantedFormProvider.notifier).setMaxPrice(ars);
+              },
+            ),
           const SizedBox(height: 16),
           TextField(
             controller: _quantityCtrl,

@@ -38,6 +38,7 @@ type PrintingRow struct {
 	IsFoil       bool
 	RarityID     string
 	RiotCardID   string
+	TCGPlayerID  *string
 	ImageURL     *string
 	ThumbnailURL *string
 	Artist       *string
@@ -136,6 +137,7 @@ func Sync(ctx context.Context, store Store, content *Content) (Summary, error) {
 					IsFoil:       isFoil,
 					RarityID:     rarityID,
 					RiotCardID:   card.ID,
+					TCGPlayerID:  nilIfEmpty(card.TCGPlayerID),
 					ImageURL:     nilIfEmpty(card.Art.FullURL),
 					ThumbnailURL: nilIfEmpty(card.Art.ThumbnailURL),
 					Artist:       nilIfEmpty(card.Art.Artist),

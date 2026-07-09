@@ -128,6 +128,9 @@ func TestRiftcodexFetchContentMapsCards(t *testing.T) {
 		jinx.Art.Artist != "Alguien" || jinx.Art.ThumbnailURL != "" {
 		t.Errorf("jinx art = %+v", jinx.Art)
 	}
+	if jinx.TCGPlayerID != "1" {
+		t.Errorf("jinx tcgplayer_id = %q, want \"1\"", jinx.TCGPlayerID)
+	}
 
 	// sin supertype cae al type; flavour null queda vacío
 	vilemaw := set.Cards[1]

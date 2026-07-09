@@ -5,8 +5,20 @@ import 'package:tcgmarketcordoba/features/post_listing/card_repository.dart';
 import 'package:tcgmarketcordoba/features/post_wanted/post_wanted_provider.dart';
 import 'package:tcgmarketcordoba/features/post_wanted/screens/post_wanted_screen.dart';
 import 'package:tcgmarketcordoba/shared/models/card_printing.dart';
+import 'package:tcgmarketcordoba/shared/models/price_reference.dart';
 
 class _FakeCardRepository implements CardRepository {
+  @override
+  Future<PriceReference> priceReference(String printingId) async =>
+      const PriceReference(
+        marketUsd: 15.26,
+        marketArs: 23000,
+        fxRate: 1510,
+        isFoil: false,
+        localActiveCount: 2,
+        localMinPrice: 10000,
+      );
+
   @override
   Future<List<CardPrinting>> search(String query) async {
     if (query.toLowerCase().contains('jinx')) {
@@ -67,5 +79,28 @@ void main() {
 
     expect(container.read(wantedCardSearchQueryProvider), '');
     expect(find.widgetWithText(SearchBar, 'viejo'), findsNothing);
+  });
+
+  testWidgets('al elegir carta el paso 2 muestra la referencia de precio '
+      'y el tap autocompleta "Pago hasta"', (tester) async {
+    final container = _container();
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      _harness(container, const PostWantedScreen(initialQuery: 'jinx')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Jinx'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('2 en venta acá'), findsOneWidget);
+    expect(find.textContaining('US\$ 15.26'), findsOneWidget);
+
+    await tester.tap(find.textContaining('US\$ 15.26'));
+    await tester.pump();
+
+    expect(find.widgetWithText(TextField, '23000'), findsOneWidget);
+    expect(container.read(postWantedFormProvider).maxPrice, 23000);
   });
 }
