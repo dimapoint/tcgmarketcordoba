@@ -96,8 +96,16 @@ func main() {
 	requireAdmin := func(h http.Handler) http.Handler {
 		return requireAuth(admin.Require(adminStore)(h))
 	}
-	adminH := &admin.Handler{Store: adminStore}
+	adminH := &admin.Handler{
+		Store:     adminStore,
+		Listings:  listingStore,
+		BuyOrders: buyOrderStore,
+	}
 	mux.Handle("GET /admin/stats", requireAdmin(http.HandlerFunc(adminH.Stats)))
+	mux.Handle("GET /admin/listings", requireAdmin(http.HandlerFunc(adminH.ListListings)))
+	mux.Handle("PATCH /admin/listings/{id}", requireAdmin(http.HandlerFunc(adminH.PatchListing)))
+	mux.Handle("GET /admin/buy-orders", requireAdmin(http.HandlerFunc(adminH.ListBuyOrders)))
+	mux.Handle("PATCH /admin/buy-orders/{id}", requireAdmin(http.HandlerFunc(adminH.PatchBuyOrder)))
 
 	sellerH := &sellers.Handler{
 		Profiles:  profileStore,

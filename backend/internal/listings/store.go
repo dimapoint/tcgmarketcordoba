@@ -116,6 +116,48 @@ func (s *PgStore) ActiveBySeller(ctx context.Context, username string) ([]Listin
 	return out, rows.Err()
 }
 
+// AllAdmin lista publicaciones de cualquier vendedor y estado, con filtros
+// opcionales por status y por nombre de carta o username. No integra la
+// interfaz Store: lo consume el paquete admin vía su propia interfaz.
+func (s *PgStore) AllAdmin(ctx context.Context, status, query string) ([]Listing, error) {
+	rows, err := s.pool.Query(ctx, selectListing+`
+		WHERE ($1 = '' OR l.status = $1::listing_status)
+		  AND ($2 = '' OR c.name ILIKE '%'||$2||'%' OR p.username ILIKE '%'||$2||'%')
+		ORDER BY l.created_at DESC
+		LIMIT 200`, status, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []Listing{}
+	for rows.Next() {
+		l, err := scanListing(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, l)
+	}
+	return out, rows.Err()
+}
+
+// AdminUpdateStatus cambia el estado sin chequear seller_id (moderación).
+func (s *PgStore) AdminUpdateStatus(ctx context.Context, id, status string) error {
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE listings SET status = $2::listing_status
+		WHERE id = $1`, id, status)
+	if isInvalidUUID(err) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (s *PgStore) ByID(ctx context.Context, id string) (Listing, error) {
 	l, err := scanListing(s.pool.QueryRow(ctx, selectListing+` WHERE l.id = $1`, id))
 	if errors.Is(err, pgx.ErrNoRows) || isInvalidUUID(err) {
