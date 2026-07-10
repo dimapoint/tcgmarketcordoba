@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"tcgmarketcordoba/internal/admin"
 	"tcgmarketcordoba/internal/auth"
 	"tcgmarketcordoba/internal/buyorders"
 	"tcgmarketcordoba/internal/cards"
@@ -88,6 +89,15 @@ func main() {
 	mux.Handle("GET /me/contacts", requireAuth(http.HandlerFunc(profileH.MyContacts)))
 	mux.Handle("PUT /me/contacts", requireAuth(http.HandlerFunc(profileH.PutContact)))
 	mux.Handle("DELETE /me/contacts/{id}", requireAuth(http.HandlerFunc(profileH.DeleteContact)))
+
+	// Rutas admin: solo paths exactos (nunca "GET /admin" a secas, que en
+	// producción lo sirve el catch-all del SPA como deep link de Flutter).
+	adminStore := admin.NewPgStore(pool)
+	requireAdmin := func(h http.Handler) http.Handler {
+		return requireAuth(admin.Require(adminStore)(h))
+	}
+	adminH := &admin.Handler{Store: adminStore}
+	mux.Handle("GET /admin/stats", requireAdmin(http.HandlerFunc(adminH.Stats)))
 
 	sellerH := &sellers.Handler{
 		Profiles:  profileStore,
