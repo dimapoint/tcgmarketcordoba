@@ -17,6 +17,7 @@ type User struct {
 	ID           string
 	Email        string
 	PasswordHash string
+	IsAdmin      bool
 }
 
 var (
@@ -46,9 +47,9 @@ func (s *PgStore) CreateUser(ctx context.Context, email, passwordHash string) (U
 	var u User
 	err = tx.QueryRow(ctx,
 		`INSERT INTO users (email, password_hash) VALUES ($1, $2)
-		 RETURNING id, email, password_hash`,
+		 RETURNING id, email, password_hash, is_admin`,
 		email, passwordHash,
-	).Scan(&u.ID, &u.Email, &u.PasswordHash)
+	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.IsAdmin)
 	if isUniqueViolation(err) {
 		return User{}, ErrEmailTaken
 	}
@@ -76,8 +77,8 @@ func (s *PgStore) CreateUser(ctx context.Context, email, passwordHash string) (U
 func (s *PgStore) UserByEmail(ctx context.Context, email string) (User, error) {
 	var u User
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, email, password_hash FROM users WHERE email = $1`, email,
-	).Scan(&u.ID, &u.Email, &u.PasswordHash)
+		`SELECT id, email, password_hash, is_admin FROM users WHERE email = $1`, email,
+	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.IsAdmin)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
@@ -87,8 +88,8 @@ func (s *PgStore) UserByEmail(ctx context.Context, email string) (User, error) {
 func (s *PgStore) UserByID(ctx context.Context, id string) (User, error) {
 	var u User
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, email, password_hash FROM users WHERE id = $1`, id,
-	).Scan(&u.ID, &u.Email, &u.PasswordHash)
+		`SELECT id, email, password_hash, is_admin FROM users WHERE id = $1`, id,
+	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.IsAdmin)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
 	}

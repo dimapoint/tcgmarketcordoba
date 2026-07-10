@@ -33,6 +33,48 @@ void main() {
     expect(TokenStore(prefs).load()?.accessToken, 'at1');
   });
 
+  test('signIn parsea is_admin y lo persiste en TokenStore', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final mock = MockClient((req) async {
+      final body = {
+        'access_token': 'at1',
+        'refresh_token': 'rt1',
+        'user': {'id': 'u1', 'email': 'a@b.com', 'is_admin': true},
+      };
+      return http.Response(jsonEncode(body), 200,
+          headers: {'content-type': 'application/json'});
+    });
+
+    final api = ApiClient(
+        baseUrl: 'http://x', tokens: TokenStore(prefs), httpClient: mock);
+    await api.signIn(email: 'a@b.com', password: 'password1');
+
+    expect(api.session?.user.isAdmin, isTrue);
+    expect(TokenStore(prefs).load()?.user.isAdmin, isTrue);
+  });
+
+  test('sesión sin is_admin (backend viejo o prefs pre-deploy) => false',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'auth.access_token': 'at1',
+      'auth.refresh_token': 'rt1',
+      'auth.user_id': 'u1',
+      'auth.email': 'a@b.com',
+    });
+    final prefs = await SharedPreferences.getInstance();
+
+    expect(TokenStore(prefs).load()?.user.isAdmin, isFalse);
+
+    final mock = MockClient((req) async => http.Response(
+        jsonEncode(_authBody('at2', 'rt2')), 200,
+        headers: {'content-type': 'application/json'}));
+    final api = ApiClient(
+        baseUrl: 'http://x', tokens: TokenStore(prefs), httpClient: mock);
+    await api.signIn(email: 'a@b.com', password: 'password1');
+    expect(api.session?.user.isAdmin, isFalse);
+  });
+
   test('401 triggers refresh and retries once', () async {
     SharedPreferences.setMockInitialValues({
       'auth.access_token': 'viejo',

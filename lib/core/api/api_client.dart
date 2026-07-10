@@ -97,7 +97,11 @@ class ApiClient {
     return AuthSession(
       accessToken: j['access_token'] as String,
       refreshToken: j['refresh_token'] as String,
-      user: AuthUser(id: u['id'] as String, email: u['email'] as String),
+      user: AuthUser(
+        id: u['id'] as String,
+        email: u['email'] as String,
+        isAdmin: (u['is_admin'] as bool?) ?? false,
+      ),
     );
   }
 
