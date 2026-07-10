@@ -27,6 +27,22 @@ type Handler struct {
 	Store     Store
 	Listings  ListingModeration
 	BuyOrders BuyOrderModeration
+	Sync      Syncer
+}
+
+func (h *Handler) StartSync(w http.ResponseWriter, r *http.Request) {
+	if err := h.Sync.Start(); errors.Is(err, ErrSyncRunning) {
+		httpx.Error(w, http.StatusConflict, "ya hay una sincronización en curso")
+		return
+	} else if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "error interno")
+		return
+	}
+	httpx.JSON(w, http.StatusAccepted, h.Sync.Status())
+}
+
+func (h *Handler) SyncStatus(w http.ResponseWriter, r *http.Request) {
+	httpx.JSON(w, http.StatusOK, h.Sync.Status())
 }
 
 func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
