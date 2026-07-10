@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -162,6 +163,7 @@ class _MyWantedTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    final thumb = order.cardImageThumb(120);
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -171,6 +173,18 @@ class _MyWantedTile extends ConsumerWidget {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
+              if (thumb != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: CachedNetworkImage(
+                    imageUrl: thumb,
+                    width: 40,
+                    height: 56,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
