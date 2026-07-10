@@ -45,10 +45,10 @@ type PrintingRow struct {
 }
 
 type Summary struct {
-	Sets      int
-	Cards     int
-	Printings int
-	NewCards  int
+	Sets      int `json:"sets"`
+	Cards     int `json:"cards"`
+	Printings int `json:"printings"`
+	NewCards  int `json:"new_cards"`
 }
 
 // memoStore cachea los Ensure* de referencia (tipos, rarezas, dominios,
