@@ -1,16 +1,12 @@
-import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/price_reference_hint.dart';
-import '../photo_repository.dart';
 import '../post_listing_provider.dart';
-import '../post_listing_repository.dart';
 import '../../../shared/models/card_printing.dart';
 
 class PostListingScreen extends ConsumerStatefulWidget {
@@ -74,40 +70,21 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
   }
 
   Future<void> _submit() async {
-    final form = ref.read(postListingFormProvider);
-    if (!form.isValid) return;
-
-    try {
-      final listingId =
-          await ref.read(postListingRepositoryProvider).createListing(
-                cardPrintingId: form.cardPrinting!.id,
-                condition: form.condition!,
-                price: form.price,
-                description: form.description,
-                cityId: form.cityId,
-              );
-
-      final photoRepo = ref.read(photoRepositoryProvider);
-      for (var i = 0; i < form.photoPaths.length; i++) {
-        await photoRepo.upload(
-          listingId: listingId,
-          file: File(form.photoPaths[i]),
-          order: i + 1,
-        );
-      }
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
-      return;
-    }
-
-    ref.read(postListingFormProvider.notifier).reset();
+    final result =
+        await ref.read(postListingSubmitProvider.notifier).submit();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('¡Publicación creada!')),
-    );
-    context.go('/');
+    switch (result) {
+      case SubmitSuccess():
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('¡Publicación creada!')),
+        );
+        context.go('/');
+      case SubmitFailure(:final message):
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
+      case SubmitSkipped():
+        break;
+    }
   }
 }
 
@@ -430,40 +407,36 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
   }
 }
 
-class _PhotoStep extends ConsumerStatefulWidget {
+class _PhotoStep extends ConsumerWidget {
   final VoidCallback onBack;
   final VoidCallback onSubmit;
   const _PhotoStep({required this.onBack, required this.onSubmit});
 
-  @override
-  ConsumerState<_PhotoStep> createState() => _PhotoStepState();
-}
-
-class _PhotoStepState extends ConsumerState<_PhotoStep> {
-  final List<File> _files = [];
-
-  Future<void> _pickPhoto() async {
-    if (_files.length >= 3) return;
+  // Se leen los bytes al elegir: en web el path del XFile es una blob URL
+  // inutilizable con dart:io, los bytes funcionan en todas las plataformas.
+  Future<void> _pickPhoto(WidgetRef ref) async {
+    final photos = ref.read(postListingFormProvider).photos;
+    if (photos.length >= 3) return;
     final picker = ImagePicker();
     final picked =
         await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (picked == null) return;
-    setState(() => _files.add(File(picked.path)));
-    ref
-        .read(postListingFormProvider.notifier)
-        .setPhotoPaths(_files.map((f) => f.path).toList());
+    final bytes = await picked.readAsBytes();
+    ref.read(postListingFormProvider.notifier).setPhotos([
+      ...photos,
+      PickedPhoto(bytes: bytes, filename: picked.name),
+    ]);
   }
 
-  void _removePhoto(int i) {
-    setState(() => _files.removeAt(i));
-    ref
-        .read(postListingFormProvider.notifier)
-        .setPhotoPaths(_files.map((f) => f.path).toList());
+  void _removePhoto(WidgetRef ref, int i) {
+    final photos = [...ref.read(postListingFormProvider).photos]..removeAt(i);
+    ref.read(postListingFormProvider.notifier).setPhotos(photos);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final form = ref.watch(postListingFormProvider);
+    final submitting = ref.watch(postListingSubmitProvider);
     final scheme = Theme.of(context).colorScheme;
 
     return Padding(
@@ -486,13 +459,13 @@ class _PhotoStepState extends ConsumerState<_PhotoStep> {
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                ..._files.asMap().entries.map((e) => Stack(
+                ...form.photos.asMap().entries.map((e) => Stack(
                       children: [
                         Padding(
                           padding: const EdgeInsets.only(right: 10),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(10),
-                            child: Image.file(e.value,
+                            child: Image.memory(e.value.bytes,
                                 width: 132, height: 132, fit: BoxFit.cover),
                           ),
                         ),
@@ -500,7 +473,7 @@ class _PhotoStepState extends ConsumerState<_PhotoStep> {
                           top: 4,
                           right: 14,
                           child: GestureDetector(
-                            onTap: () => _removePhoto(e.key),
+                            onTap: () => _removePhoto(ref, e.key),
                             child: CircleAvatar(
                               radius: 12,
                               backgroundColor: scheme.error,
@@ -511,9 +484,9 @@ class _PhotoStepState extends ConsumerState<_PhotoStep> {
                         ),
                       ],
                     )),
-                if (_files.length < 3)
+                if (form.photos.length < 3)
                   InkWell(
-                    onTap: _pickPhoto,
+                    onTap: () => _pickPhoto(ref),
                     borderRadius: BorderRadius.circular(10),
                     child: Container(
                       width: 132,
@@ -546,12 +519,19 @@ class _PhotoStepState extends ConsumerState<_PhotoStep> {
           const Spacer(),
           Row(children: [
             OutlinedButton(
-                onPressed: widget.onBack, child: const Text('Atrás')),
+                onPressed: submitting ? null : onBack,
+                child: const Text('Atrás')),
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton(
-                onPressed: form.isValid ? widget.onSubmit : null,
-                child: const Text('Publicar'),
+                onPressed: (form.isValid && !submitting) ? onSubmit : null,
+                child: submitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Publicar'),
               ),
             ),
           ]),

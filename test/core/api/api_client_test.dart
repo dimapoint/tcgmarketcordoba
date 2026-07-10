@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -103,6 +102,39 @@ void main() {
     expect(api.session?.accessToken, 'at-nuevo');
   });
 
+  test('uploadFile manda los bytes como multipart (sin dart:io)', () async {
+    SharedPreferences.setMockInitialValues({
+      'auth.access_token': 'at1',
+      'auth.refresh_token': 'rt1',
+      'auth.user_id': 'u1',
+      'auth.email': 'a@b.com',
+    });
+    final prefs = await SharedPreferences.getInstance();
+    List<int>? receivedBody;
+    String? contentType;
+    final mock = MockClient((req) async {
+      receivedBody = req.bodyBytes;
+      contentType = req.headers['content-type'];
+      return http.Response(jsonEncode({'url': 'http://x/foto.jpg'}), 200);
+    });
+
+    final api = ApiClient(
+        baseUrl: 'http://x', tokens: TokenStore(prefs), httpClient: mock);
+    final result = await api.uploadFile(
+      '/photos',
+      bytes: utf8.encode('contenido-jpg'),
+      filename: 'foto.jpg',
+      fields: {'display_order': '2'},
+    );
+
+    expect(result, {'url': 'http://x/foto.jpg'});
+    expect(contentType, startsWith('multipart/form-data'));
+    final body = utf8.decode(receivedBody!, allowMalformed: true);
+    expect(body, contains('contenido-jpg'));
+    expect(body, contains('filename="foto.jpg"'));
+    expect(body, contains('display_order'));
+  });
+
   test('uploadFile con 401 refresca y reintenta', () async {
     SharedPreferences.setMockInitialValues({
       'auth.access_token': 'viejo',
@@ -111,10 +143,6 @@ void main() {
       'auth.email': 'a@b.com',
     });
     final prefs = await SharedPreferences.getInstance();
-    final tmp = File(
-        '${Directory.systemTemp.path}${Platform.pathSeparator}upload_test.jpg')
-      ..writeAsStringSync('x');
-    addTearDown(() => tmp.deleteSync());
 
     var calls = <String>[];
     final mock = MockClient((req) async {
@@ -130,7 +158,8 @@ void main() {
 
     final api = ApiClient(
         baseUrl: 'http://x', tokens: TokenStore(prefs), httpClient: mock);
-    final result = await api.uploadFile('/photos', filePath: tmp.path);
+    final result = await api.uploadFile('/photos',
+        bytes: utf8.encode('x'), filename: 'upload_test.jpg');
 
     expect(calls, ['/photos', '/auth/refresh', '/photos']);
     expect(result, {'url': 'http://x/foto.jpg'});

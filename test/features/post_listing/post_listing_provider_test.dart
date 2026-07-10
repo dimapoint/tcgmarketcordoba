@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mockito/annotations.dart';
@@ -41,6 +42,20 @@ void main() {
     notifier.setCondition('NM');
     notifier.setPrice(100);
     expect(container.read(postListingFormProvider).isValid, isTrue);
+  });
+
+  test('setPhotos guarda bytes y nombre (sin paths de dart:io)', () {
+    final notifier = container.read(postListingFormProvider.notifier);
+    final photo = PickedPhoto(
+      bytes: Uint8List.fromList([1, 2, 3]),
+      filename: 'carta.jpg',
+    );
+    notifier.setPhotos([photo]);
+
+    final form = container.read(postListingFormProvider);
+    expect(form.photos, hasLength(1));
+    expect(form.photos.first.filename, 'carta.jpg');
+    expect(form.photos.first.bytes, [1, 2, 3]);
   });
 
   test('form is invalid without condition', () {

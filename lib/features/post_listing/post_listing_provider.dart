@@ -1,13 +1,26 @@
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/api/api_client.dart';
 import '../../shared/models/card_printing.dart';
 import 'card_repository.dart';
+import 'photo_repository.dart';
+import 'post_listing_repository.dart';
+
+/// Foto elegida por el usuario, ya leída a memoria.
+/// Se guardan bytes (no paths): en web el path del picker es una blob URL
+/// que dart:io no puede abrir.
+class PickedPhoto {
+  final Uint8List bytes;
+  final String filename;
+  const PickedPhoto({required this.bytes, required this.filename});
+}
 
 class PostListingForm {
   final CardPrinting? cardPrinting;
   final String? condition;
   final double price;
   final String? description;
-  final List<String> photoPaths;
+  final List<PickedPhoto> photos;
   final String? cityId;
 
   const PostListingForm({
@@ -15,7 +28,7 @@ class PostListingForm {
     this.condition,
     this.price = 0,
     this.description,
-    this.photoPaths = const [],
+    this.photos = const [],
     this.cityId,
   });
 
@@ -29,7 +42,7 @@ class PostListingForm {
     String? condition,
     double? price,
     String? description,
-    List<String>? photoPaths,
+    List<PickedPhoto>? photos,
     String? cityId,
   }) =>
       PostListingForm(
@@ -37,7 +50,7 @@ class PostListingForm {
         condition: condition ?? this.condition,
         price: price ?? this.price,
         description: description ?? this.description,
-        photoPaths: photoPaths ?? this.photoPaths,
+        photos: photos ?? this.photos,
         cityId: cityId ?? this.cityId,
       );
 }
@@ -51,8 +64,8 @@ class PostListingFormNotifier extends Notifier<PostListingForm> {
   void setCondition(String c) => state = state.copyWith(condition: c);
   void setPrice(double p) => state = state.copyWith(price: p);
   void setDescription(String? d) => state = state.copyWith(description: d);
-  void setPhotoPaths(List<String> paths) =>
-      state = state.copyWith(photoPaths: paths);
+  void setPhotos(List<PickedPhoto> photos) =>
+      state = state.copyWith(photos: photos);
   void setCityId(String id) => state = state.copyWith(cityId: id);
   void reset() => state = const PostListingForm();
 }
@@ -60,6 +73,76 @@ class PostListingFormNotifier extends Notifier<PostListingForm> {
 final postListingFormProvider =
     NotifierProvider<PostListingFormNotifier, PostListingForm>(
   PostListingFormNotifier.new,
+);
+
+sealed class SubmitResult {}
+
+class SubmitSuccess extends SubmitResult {}
+
+class SubmitFailure extends SubmitResult {
+  final String message;
+  SubmitFailure(this.message);
+}
+
+/// Envío ignorado: ya hay uno en curso o el form es inválido.
+class SubmitSkipped extends SubmitResult {}
+
+/// Estado = true mientras hay un envío en curso (deshabilita el botón).
+/// Centraliza el submit para que ningún error quede sin superficie: el bug
+/// original era un UnsupportedError de dart:io que escapaba a un
+/// `on ApiException` y dejaba la pantalla muda con el listing ya creado.
+class PostListingSubmitNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  Future<SubmitResult> submit() async {
+    if (state) return SubmitSkipped();
+    final form = ref.read(postListingFormProvider);
+    if (!form.isValid) return SubmitSkipped();
+
+    state = true;
+    try {
+      final listingId =
+          await ref.read(postListingRepositoryProvider).createListing(
+                cardPrintingId: form.cardPrinting!.id,
+                condition: form.condition!,
+                price: form.price,
+                description: form.description,
+                cityId: form.cityId,
+              );
+
+      final photoRepo = ref.read(photoRepositoryProvider);
+      for (var i = 0; i < form.photos.length; i++) {
+        try {
+          await photoRepo.upload(
+            listingId: listingId,
+            bytes: form.photos[i].bytes,
+            filename: form.photos[i].filename,
+            order: i + 1,
+          );
+        } catch (e) {
+          // El listing ya existe; que el mensaje no sugiera reintentar todo.
+          final detail = e is ApiException ? e.message : '$e';
+          return SubmitFailure(
+              'La publicación se creó pero falló la foto ${i + 1}: $detail');
+        }
+      }
+
+      ref.read(postListingFormProvider.notifier).reset();
+      return SubmitSuccess();
+    } on ApiException catch (e) {
+      return SubmitFailure(e.message);
+    } catch (e) {
+      return SubmitFailure('No se pudo publicar: $e');
+    } finally {
+      state = false;
+    }
+  }
+}
+
+final postListingSubmitProvider =
+    NotifierProvider<PostListingSubmitNotifier, bool>(
+  PostListingSubmitNotifier.new,
 );
 
 final cardSearchQueryProvider = StateProvider<String>((ref) => '');

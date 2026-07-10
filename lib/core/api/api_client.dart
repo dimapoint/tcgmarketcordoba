@@ -151,9 +151,12 @@ class ApiClient {
     return _decode(res);
   }
 
+  // Recibe bytes (no un path): dart:io no existe en Flutter web, así que el
+  // caller lee el XFile con readAsBytes() y acá se arma el multipart portable.
   Future<dynamic> uploadFile(
     String path, {
-    required String filePath,
+    required List<int> bytes,
+    required String filename,
     Map<String, String> fields = const {},
     bool retried = false,
   }) async {
@@ -164,10 +167,12 @@ class ApiClient {
     final req = http.MultipartRequest('POST', Uri.parse('$baseUrl$path'))
       ..headers['Authorization'] = 'Bearer ${s.accessToken}'
       ..fields.addAll(fields)
-      ..files.add(await http.MultipartFile.fromPath('file', filePath));
+      ..files
+          .add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
     final res = await http.Response.fromStream(await _http.send(req));
     if (res.statusCode == 401 && !retried && await _refresh()) {
-      return uploadFile(path, filePath: filePath, fields: fields, retried: true);
+      return uploadFile(path,
+          bytes: bytes, filename: filename, fields: fields, retried: true);
     }
     return _decode(res);
   }
