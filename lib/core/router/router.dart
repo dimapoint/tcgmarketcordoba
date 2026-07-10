@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/admin/screens/admin_screen.dart';
 import '../../features/auth/screens/sign_in_screen.dart';
 import '../../features/auth/screens/sign_up_screen.dart';
 import '../../features/browse/screens/browse_screen.dart';
@@ -34,13 +35,20 @@ class SessionRefreshNotifier extends ChangeNotifier {
   }
 }
 
-const _protectedPrefixes = ['/post', '/wanted/new', '/my-listings', '/profile'];
+const _protectedPrefixes = [
+  '/post',
+  '/wanted/new',
+  '/my-listings',
+  '/profile',
+  '/admin',
+];
 
 /// Decisión de redirect pura, testeable sin widgets.
 @visibleForTesting
 String? computeRedirect({
   required bool loggedIn,
   required bool hasSeenOnboarding,
+  bool isAdmin = false,
   required Uri uri,
   required String matchedLocation,
 }) {
@@ -53,6 +61,9 @@ String? computeRedirect({
   if (isProtected && !loggedIn) {
     return Uri(path: '/sign-in', queryParameters: {'from': uri.toString()})
         .toString();
+  }
+  if (matchedLocation.startsWith('/admin') && loggedIn && !isAdmin) {
+    return '/';
   }
   if (loggedIn && !hasSeenOnboarding && !onOnboarding) {
     return '/onboarding';
@@ -87,6 +98,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       loggedIn: api.session != null,
       hasSeenOnboarding:
           onboarding.lastSeenVersion() >= kOnboardingLatestVersion,
+      isAdmin: api.session?.user.isAdmin ?? false,
       uri: state.uri,
       matchedLocation: state.matchedLocation,
     ),
@@ -127,6 +139,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/buy-orders/:id',
         redirect: (c, s) => '/b/${s.pathParameters['id']}',
       ),
+      GoRoute(path: '/admin',      builder: (c, s) => const AdminScreen()),
       GoRoute(path: '/sign-in',    builder: (c, s) => const SignInScreen()),
       GoRoute(path: '/sign-up',    builder: (c, s) => const SignUpScreen()),
       GoRoute(path: '/onboarding', builder: (c, s) => const OnboardingScreen()),
