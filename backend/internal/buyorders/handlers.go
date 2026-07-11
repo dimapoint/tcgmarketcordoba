@@ -73,6 +73,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 			"configurá tu ciudad en tu perfil primero")
 		return
 	}
+	if errors.Is(err, ErrDuplicateActiveBuyOrder) {
+		httpx.Error(w, http.StatusConflict,
+			"Ya tenés una búsqueda activa de esta carta.")
+		return
+	}
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "error interno")
 		return

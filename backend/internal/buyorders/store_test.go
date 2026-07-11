@@ -3,6 +3,8 @@ package buyorders
 import (
 	"strings"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // Regresión: la subquery de matching_count tiene que quedar en la lista del
@@ -19,5 +21,15 @@ func TestMineQueryPutsMatchingCountInSelectList(t *testing.T) {
 	}
 	if count > from {
 		t.Errorf("matching_count (pos %d) tiene que estar antes del FROM (pos %d): quedó en el FROM en vez de la lista del SELECT", count, from)
+	}
+}
+
+func TestDuplicateActiveBuyOrderConstraintIsMapped(t *testing.T) {
+	err := &pgconn.PgError{
+		Code:           "23505",
+		ConstraintName: "buy_orders_one_active_per_card",
+	}
+	if !isDuplicateActiveBuyOrder(err) {
+		t.Fatal("duplicate active buy order constraint was not recognized")
 	}
 }

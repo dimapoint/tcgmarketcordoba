@@ -16,6 +16,7 @@ type fakeStore struct {
 	items       map[string]BuyOrder
 	profileCity *string
 	created     *CreateParams
+	createErr   error
 }
 
 func (f *fakeStore) Active(_ context.Context, query string) ([]BuyOrder, error) {
@@ -47,6 +48,9 @@ func (f *fakeStore) Mine(_ context.Context, buyerID, status string) ([]BuyOrder,
 }
 
 func (f *fakeStore) Create(_ context.Context, p CreateParams) (BuyOrder, error) {
+	if f.createErr != nil {
+		return BuyOrder{}, f.createErr
+	}
 	if p.CityID == nil && f.profileCity == nil {
 		return BuyOrder{}, ErrNoCity
 	}
@@ -119,6 +123,24 @@ func TestCreateBuyOrderWithoutCity422(t *testing.T) {
 		`{"card_printing_id":"cp1","max_price":100}`))
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("code = %d, want 422: %s", rec.Code, rec.Body)
+	}
+}
+
+func TestCreateBuyOrderDuplicateActiveCard409(t *testing.T) {
+	city := "city-1"
+	store := &fakeStore{
+		items:       map[string]BuyOrder{},
+		profileCity: &city,
+		createErr:   ErrDuplicateActiveBuyOrder,
+	}
+	h := &Handler{Store: store}
+	rec := serveAuthed(h.Create, authedReq("POST", "/buy-orders",
+		`{"card_printing_id":"cp1","max_price":100}`))
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("code = %d, want 409: %s", rec.Code, rec.Body)
+	}
+	if !strings.Contains(rec.Body.String(), "Ya tenés una búsqueda activa de esta carta.") {
+		t.Fatalf("body = %s", rec.Body)
 	}
 }
 

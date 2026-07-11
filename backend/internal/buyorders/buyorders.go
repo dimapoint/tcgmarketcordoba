@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("buy order not found")
-	ErrNoCity   = errors.New("buyer has no city configured")
+	ErrNotFound                = errors.New("buy order not found")
+	ErrNoCity                  = errors.New("buyer has no city configured")
+	ErrDuplicateActiveBuyOrder = errors.New("active buy order already exists for card")
 )
 
 type BuyOrder struct {

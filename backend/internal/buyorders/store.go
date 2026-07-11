@@ -237,6 +237,9 @@ func (s *PgStore) Create(ctx context.Context, p CreateParams) (BuyOrder, error) 
 		RETURNING id`,
 		p.BuyerID, p.CardPrintingID, p.MinCondition, p.MaxPrice, p.Quantity, p.Description, *cityID,
 	).Scan(&id)
+	if isDuplicateActiveBuyOrder(err) {
+		return BuyOrder{}, ErrDuplicateActiveBuyOrder
+	}
 	if err != nil {
 		return BuyOrder{}, err
 	}
@@ -262,4 +265,10 @@ func (s *PgStore) UpdateStatus(ctx context.Context, id, buyerID, status string) 
 func isInvalidUUID(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "22P02"
+}
+
+func isDuplicateActiveBuyOrder(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" &&
+		pgErr.ConstraintName == "buy_orders_one_active_per_card"
 }
