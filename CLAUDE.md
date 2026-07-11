@@ -46,7 +46,7 @@ Docker: `docker compose up --build` (uses `backend/.env`).
 
 ### Go Backend (`backend/`)
 
-- Module `tcgmarketcordoba`, stdlib `net/http` mux (Go 1.22+ patterns like `GET /listings/{id}`), no framework.
+- Module `tcgmarketcordoba`, stdlib `net/http` mux (Go 1.22+ patterns like `GET /listings/{id}`), no framework. `go.mod` pins Go 1.26.5.
 - Feature packages under `internal/`: `auth`, `listings`, `cards`, `profiles`, `photos`. Each has a `Store` interface (pgx implementation) and handlers unit-tested against fake stores.
 - `internal/config` loads env (+ local `backend/.env`); `internal/db` wires the pgx pool (`DATABASE_URL`); `internal/httpx` has JSON/error/CORS helpers.
 - Auth: HS256 access token (15 min, subject = user id) + rotating refresh tokens (SHA-256-hashed in `refresh_tokens`, 30 days). Passwords bcrypt. Signup creates the `profiles` row (username = email local part).
