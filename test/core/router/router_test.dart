@@ -233,6 +233,44 @@ void main() {
       );
     });
 
+    test('deslogueado en /admin -> sign-in con from', () {
+      final r = computeRedirect(
+        loggedIn: false,
+        hasSeenOnboarding: true,
+        uri: Uri.parse('/admin'),
+        matchedLocation: '/admin',
+      );
+      final uri = Uri.parse(r!);
+      expect(uri.path, '/sign-in');
+      expect(uri.queryParameters['from'], '/admin');
+    });
+
+    test('logueado no-admin en /admin -> home', () {
+      expect(
+        computeRedirect(
+          loggedIn: true,
+          hasSeenOnboarding: true,
+          isAdmin: false,
+          uri: Uri.parse('/admin'),
+          matchedLocation: '/admin',
+        ),
+        '/',
+      );
+    });
+
+    test('admin en /admin -> null', () {
+      expect(
+        computeRedirect(
+          loggedIn: true,
+          hasSeenOnboarding: true,
+          isAdmin: true,
+          uri: Uri.parse('/admin'),
+          matchedLocation: '/admin',
+        ),
+        isNull,
+      );
+    });
+
     test('deslogueado en /onboarding -> home', () {
       expect(
         computeRedirect(

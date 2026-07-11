@@ -73,8 +73,9 @@ type authRes struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	User         struct {
-		ID    string `json:"id"`
-		Email string `json:"email"`
+		ID      string `json:"id"`
+		Email   string `json:"email"`
+		IsAdmin bool   `json:"is_admin"`
 	} `json:"user"`
 }
 
@@ -115,6 +116,66 @@ func TestSignInWrongPassword(t *testing.T) {
 	rec := doJSON(t, h.SignIn, `{"email":"a@b.com","password":"incorrecta"}`)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("code = %d, want 401", rec.Code)
+	}
+}
+
+func TestSignUpUserIsNotAdmin(t *testing.T) {
+	h := testHandler()
+	rec := doJSON(t, h.SignUp, `{"email":"a@b.com","password":"12345678"}`)
+	var res authRes
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.User.IsAdmin {
+		t.Fatalf("signup user should not be admin: %s", rec.Body)
+	}
+}
+
+func TestSignInIncludesIsAdmin(t *testing.T) {
+	h := testHandler()
+	doJSON(t, h.SignUp, `{"email":"a@b.com","password":"12345678"}`)
+	fs := h.Store.(*fakeStore)
+	u := fs.usersByEmail["a@b.com"]
+	u.IsAdmin = true
+	fs.usersByEmail["a@b.com"] = u
+
+	rec := doJSON(t, h.SignIn, `{"email":"a@b.com","password":"12345678"}`)
+	var res authRes
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if !res.User.IsAdmin {
+		t.Fatalf("signin should include is_admin=true: %s", rec.Body)
+	}
+}
+
+func TestMeIncludesIsAdmin(t *testing.T) {
+	h := testHandler()
+	rec := doJSON(t, h.SignUp, `{"email":"a@b.com","password":"12345678"}`)
+	var signup authRes
+	json.Unmarshal(rec.Body.Bytes(), &signup)
+
+	fs := h.Store.(*fakeStore)
+	u := fs.usersByEmail["a@b.com"]
+	u.IsAdmin = true
+	fs.usersByEmail["a@b.com"] = u
+
+	req := httptest.NewRequest("GET", "/auth/me", nil)
+	req.Header.Set("Authorization", "Bearer "+signup.AccessToken)
+	rec2 := httptest.NewRecorder()
+	Middleware(h.Tokens)(http.HandlerFunc(h.Me)).ServeHTTP(rec2, req)
+
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("code = %d, body = %s", rec2.Code, rec2.Body)
+	}
+	var me struct {
+		IsAdmin bool `json:"is_admin"`
+	}
+	if err := json.Unmarshal(rec2.Body.Bytes(), &me); err != nil {
+		t.Fatal(err)
+	}
+	if !me.IsAdmin {
+		t.Fatalf("/auth/me should include is_admin=true: %s", rec2.Body)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"tcgmarketcordoba/internal/admin"
 	"tcgmarketcordoba/internal/auth"
 	"tcgmarketcordoba/internal/buyorders"
 	"tcgmarketcordoba/internal/cards"
@@ -19,6 +20,7 @@ import (
 	"tcgmarketcordoba/internal/photos"
 	"tcgmarketcordoba/internal/prices"
 	"tcgmarketcordoba/internal/profiles"
+	"tcgmarketcordoba/internal/riftbound"
 	"tcgmarketcordoba/internal/sellers"
 	"tcgmarketcordoba/internal/webapp"
 )
@@ -88,6 +90,31 @@ func main() {
 	mux.Handle("GET /me/contacts", requireAuth(http.HandlerFunc(profileH.MyContacts)))
 	mux.Handle("PUT /me/contacts", requireAuth(http.HandlerFunc(profileH.PutContact)))
 	mux.Handle("DELETE /me/contacts/{id}", requireAuth(http.HandlerFunc(profileH.DeleteContact)))
+
+	// Rutas admin: solo paths exactos (nunca "GET /admin" a secas, que en
+	// producción lo sirve el catch-all del SPA como deep link de Flutter).
+	adminStore := admin.NewPgStore(pool)
+	requireAdmin := func(h http.Handler) http.Handler {
+		return requireAuth(admin.Require(adminStore)(h))
+	}
+	adminH := &admin.Handler{
+		Store:     adminStore,
+		Listings:  listingStore,
+		BuyOrders: buyOrderStore,
+		Sync: &admin.SyncRunner{
+			Fetch: (&riftbound.RiftcodexClient{}).FetchContent,
+			Run: func(ctx context.Context, content *riftbound.Content) (riftbound.Summary, error) {
+				return riftbound.SyncAll(ctx, pool, content)
+			},
+		},
+	}
+	mux.Handle("GET /admin/stats", requireAdmin(http.HandlerFunc(adminH.Stats)))
+	mux.Handle("GET /admin/listings", requireAdmin(http.HandlerFunc(adminH.ListListings)))
+	mux.Handle("PATCH /admin/listings/{id}", requireAdmin(http.HandlerFunc(adminH.PatchListing)))
+	mux.Handle("GET /admin/buy-orders", requireAdmin(http.HandlerFunc(adminH.ListBuyOrders)))
+	mux.Handle("PATCH /admin/buy-orders/{id}", requireAdmin(http.HandlerFunc(adminH.PatchBuyOrder)))
+	mux.Handle("POST /admin/sync-cards", requireAdmin(http.HandlerFunc(adminH.StartSync)))
+	mux.Handle("GET /admin/sync-cards", requireAdmin(http.HandlerFunc(adminH.SyncStatus)))
 
 	sellerH := &sellers.Handler{
 		Profiles:  profileStore,

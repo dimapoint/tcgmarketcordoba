@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../features/auth/auth_provider.dart';
 import '../../../shared/models/profile.dart';
 import '../profile_provider.dart';
@@ -11,6 +12,8 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(profileProvider);
     final contactsAsync = ref.watch(contactMethodsProvider);
+    final isAdmin =
+        ref.watch(authSessionProvider).valueOrNull?.user.isAdmin ?? false;
 
     return Scaffold(
       body: SafeArea(
@@ -26,6 +29,7 @@ class ProfileScreen extends ConsumerWidget {
                   : _ProfileBody(
                       profile: profile,
                       contactsAsync: contactsAsync,
+                      isAdmin: isAdmin,
                     ),
             ),
           ),
@@ -38,7 +42,12 @@ class ProfileScreen extends ConsumerWidget {
 class _ProfileBody extends ConsumerStatefulWidget {
   final Profile profile;
   final AsyncValue<List<ContactMethod>> contactsAsync;
-  const _ProfileBody({required this.profile, required this.contactsAsync});
+  final bool isAdmin;
+  const _ProfileBody({
+    required this.profile,
+    required this.contactsAsync,
+    required this.isAdmin,
+  });
 
   @override
   ConsumerState<_ProfileBody> createState() => _ProfileBodyState();
@@ -90,6 +99,17 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
             ),
           ],
         ),
+        if (widget.isAdmin) ...[
+          const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.admin_panel_settings),
+              title: const Text('Panel de administración'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/admin'),
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         Card(
           child: Padding(

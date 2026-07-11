@@ -108,6 +108,48 @@ func (s *PgStore) ActiveByBuyer(ctx context.Context, username string) ([]BuyOrde
 	return out, rows.Err()
 }
 
+// AllAdmin lista búsquedas de cualquier comprador y estado, con filtros
+// opcionales por status y por nombre de carta o username. No integra la
+// interfaz Store: lo consume el paquete admin vía su propia interfaz.
+func (s *PgStore) AllAdmin(ctx context.Context, status, query string) ([]BuyOrder, error) {
+	rows, err := s.pool.Query(ctx, selectBuyOrder+`
+		WHERE ($1 = '' OR bo.status = $1::buy_order_status)
+		  AND ($2 = '' OR c.name ILIKE '%'||$2||'%' OR p.username ILIKE '%'||$2||'%')
+		ORDER BY bo.created_at DESC
+		LIMIT 200`, status, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []BuyOrder{}
+	for rows.Next() {
+		o, err := scanBuyOrder(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, o)
+	}
+	return out, rows.Err()
+}
+
+// AdminUpdateStatus cambia el estado sin chequear buyer_id (moderación).
+func (s *PgStore) AdminUpdateStatus(ctx context.Context, id, status string) error {
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE buy_orders SET status = $2::buy_order_status
+		WHERE id = $1`, id, status)
+	if isInvalidUUID(err) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (s *PgStore) ByID(ctx context.Context, id string) (BuyOrder, error) {
 	o, err := scanBuyOrder(s.pool.QueryRow(ctx, selectBuyOrder+` WHERE bo.id = $1`, id))
 	if errors.Is(err, pgx.ErrNoRows) || isInvalidUUID(err) {

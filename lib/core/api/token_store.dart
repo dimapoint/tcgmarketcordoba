@@ -9,6 +9,7 @@ class TokenStore {
   static const _kRefresh = 'auth.refresh_token';
   static const _kUserId = 'auth.user_id';
   static const _kEmail = 'auth.email';
+  static const _kIsAdmin = 'auth.is_admin';
 
   AuthSession? load() {
     final access = _prefs.getString(_kAccess);
@@ -21,7 +22,13 @@ class TokenStore {
     return AuthSession(
       accessToken: access,
       refreshToken: refresh,
-      user: AuthUser(id: userId, email: email),
+      // Key ausente => false: sesiones persistidas antes de este campo
+      // degradan bien hasta el próximo refresh.
+      user: AuthUser(
+        id: userId,
+        email: email,
+        isAdmin: _prefs.getBool(_kIsAdmin) ?? false,
+      ),
     );
   }
 
@@ -30,6 +37,7 @@ class TokenStore {
     await _prefs.setString(_kRefresh, s.refreshToken);
     await _prefs.setString(_kUserId, s.user.id);
     await _prefs.setString(_kEmail, s.user.email);
+    await _prefs.setBool(_kIsAdmin, s.user.isAdmin);
   }
 
   Future<void> clear() async {
@@ -37,5 +45,6 @@ class TokenStore {
     await _prefs.remove(_kRefresh);
     await _prefs.remove(_kUserId);
     await _prefs.remove(_kEmail);
+    await _prefs.remove(_kIsAdmin);
   }
 }

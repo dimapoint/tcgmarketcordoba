@@ -13,8 +13,6 @@ import (
 	"flag"
 	"log"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
 	"tcgmarketcordoba/internal/config"
 	"tcgmarketcordoba/internal/db"
 	"tcgmarketcordoba/internal/riftbound"
@@ -61,42 +59,11 @@ func main() {
 	}
 	defer pool.Close()
 
-	// Una transacción por set: si la conexión se corta a mitad de camino,
-	// lo commiteado queda y reintentar es barato (el sync es idempotente).
-	var total riftbound.Summary
-	for _, set := range content.Sets {
-		sum, err := syncSet(ctx, pool, content, set)
-		if err != nil {
-			log.Fatalf("set %s: %v", set.ID, err)
-		}
-		total.Sets += sum.Sets
-		total.Cards += sum.Cards
-		total.NewCards += sum.NewCards
-		total.Printings += sum.Printings
-		log.Printf("set %s ok: %d cartas (%d nuevas), %d printings",
-			set.ID, sum.Cards, sum.NewCards, sum.Printings)
+	total, err := riftbound.SyncAll(ctx, pool, content)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	log.Printf("sync ok: %d sets, %d cartas (%d nuevas), %d printings",
 		total.Sets, total.Cards, total.NewCards, total.Printings)
-}
-
-func syncSet(ctx context.Context, pool *pgxpool.Pool, content *riftbound.Content, set riftbound.Set) (riftbound.Summary, error) {
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return riftbound.Summary{}, err
-	}
-	defer tx.Rollback(ctx)
-
-	one := &riftbound.Content{
-		Game:        content.Game,
-		Version:     content.Version,
-		LastUpdated: content.LastUpdated,
-		Sets:        []riftbound.Set{set},
-	}
-	sum, err := riftbound.Sync(ctx, riftbound.NewPgStore(tx), one)
-	if err != nil {
-		return sum, err
-	}
-	return sum, tx.Commit(ctx)
 }

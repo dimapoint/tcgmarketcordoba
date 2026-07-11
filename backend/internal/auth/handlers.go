@@ -25,8 +25,9 @@ type credentials struct {
 }
 
 type userJSON struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
+	ID      string `json:"id"`
+	Email   string `json:"email"`
+	IsAdmin bool   `json:"is_admin"`
 }
 
 type authResponse struct {
@@ -105,7 +106,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusNotFound, "usuario no encontrado")
 		return
 	}
-	httpx.JSON(w, http.StatusOK, userJSON{ID: u.ID, Email: u.Email})
+	httpx.JSON(w, http.StatusOK, userJSON{ID: u.ID, Email: u.Email, IsAdmin: u.IsAdmin})
 }
 
 func (h *Handler) respondWithTokens(w http.ResponseWriter, r *http.Request, status int, u User) {
@@ -126,6 +127,6 @@ func (h *Handler) respondWithTokens(w http.ResponseWriter, r *http.Request, stat
 	httpx.JSON(w, status, authResponse{
 		AccessToken:  access,
 		RefreshToken: refresh,
-		User:         userJSON{ID: u.ID, Email: u.Email},
+		User:         userJSON{ID: u.ID, Email: u.Email, IsAdmin: u.IsAdmin},
 	})
 }
