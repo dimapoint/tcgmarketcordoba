@@ -11,53 +11,53 @@ import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/max_width.dart';
 import '../../../shared/widgets/price_text.dart';
 import '../../../shared/widgets/scaffold_with_nav.dart';
-import '../wanted_provider.dart';
-import '../widgets/wanted_card.dart';
 
-/// Ruta al wizard de publicar búsqueda, con la query prefillada si hay.
-String _newWantedUri(String query) => Uri(
-      path: '/wanted/new',
-      queryParameters: query.isEmpty ? null : {'q': query},
-    ).toString();
-
+/// "Busco": pantalla 100% personal con las búsquedas propias del usuario y
+/// sus matches. El tablero de demanda de otros compradores vive en Explorar
+/// (toggle "En venta" / "Se busca"), no acá.
 class WantedScreen extends ConsumerWidget {
   const WantedScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(authSessionProvider).valueOrNull;
     final isWide =
         MediaQuery.sizeOf(context).width >= AppTheme.mobileBreakpoint;
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        floatingActionButton: FloatingActionButton.extended(
-          icon: const Icon(Icons.add),
-          label: const Text('Publicar búsqueda'),
-          onPressed: () =>
-              context.go(_newWantedUri(ref.read(wantedSearchQueryProvider))),
-        ),
-        body: SafeArea(
-          child: CenteredMaxWidth(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (!isWide)
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    child: Wordmark(),
-                  ),
-                const TabBar(
-                  tabs: [Tab(text: 'Tablero'), Tab(text: 'Mis búsquedas')],
-                ),
-                const Expanded(
-                  child: TabBarView(children: [
-                    _BoardTab(),
-                    _MyWantedTab(),
-                  ]),
-                ),
-              ],
+    return Scaffold(
+      floatingActionButton: session == null
+          ? null
+          : FloatingActionButton.extended(
+              icon: const Icon(Icons.add),
+              label: const Text('Publicar búsqueda'),
+              onPressed: () => context.go('/wanted/new'),
             ),
+      body: SafeArea(
+        child: CenteredMaxWidth(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!isWide)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Wordmark(),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text('Tus búsquedas',
+                    style: Theme.of(context).textTheme.headlineSmall),
+              ),
+              Expanded(
+                child: session == null
+                    ? EmptyState(
+                        icon: Icons.login,
+                        message: 'Iniciá sesión para ver tus búsquedas',
+                        actionLabel: 'Iniciar sesión',
+                        onAction: () => context.push('/sign-in'),
+                      )
+                    : const _MyWantedList(),
+              ),
+            ],
           ),
         ),
       ),
@@ -65,75 +65,11 @@ class WantedScreen extends ConsumerWidget {
   }
 }
 
-class _BoardTab extends ConsumerWidget {
-  const _BoardTab();
+class _MyWantedList extends ConsumerWidget {
+  const _MyWantedList();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final orders = ref.watch(wantedOrdersProvider);
-    final query = ref.watch(wantedSearchQueryProvider);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: SearchBar(
-            hintText: 'Buscar carta...',
-            onChanged: (v) =>
-                ref.read(wantedSearchQueryProvider.notifier).state = v,
-            leading: const Icon(Icons.search),
-          ),
-        ),
-        Expanded(
-          child: orders.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Error: $e')),
-            data: (items) => items.isEmpty
-                ? (query.isEmpty
-                    ? EmptyState(
-                        icon: Icons.travel_explore_outlined,
-                        message: 'Todavía nadie publicó qué está buscando',
-                        actionLabel: 'Publicar una búsqueda',
-                        onAction: () => context.go('/wanted/new'),
-                      )
-                    : EmptyState(
-                        icon: Icons.travel_explore_outlined,
-                        message: 'Nadie está buscando "$query" todavía',
-                        actionLabel: 'Publicar búsqueda de "$query"',
-                        onAction: () => context.go(_newWantedUri(query)),
-                      ))
-                : RefreshIndicator(
-                    onRefresh: () async => ref.invalidate(wantedOrdersProvider),
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                      itemCount: items.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (_, i) => WantedCard(order: items[i]),
-                    ),
-                  ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MyWantedTab extends ConsumerWidget {
-  const _MyWantedTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.watch(authSessionProvider).valueOrNull;
-    if (session == null) {
-      return EmptyState(
-        icon: Icons.login,
-        message: 'Iniciá sesión para ver tus búsquedas',
-        actionLabel: 'Iniciar sesión',
-        onAction: () => context.push('/sign-in'),
-      );
-    }
-
     final orders = ref.watch(myWantedProvider('active'));
 
     return orders.when(

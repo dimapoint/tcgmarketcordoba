@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:tcgmarketcordoba/features/browse/listing_provider.dart';
 import 'package:tcgmarketcordoba/features/browse/listing_repository.dart';
 import 'package:tcgmarketcordoba/features/browse/screens/browse_screen.dart';
+import 'package:tcgmarketcordoba/features/wanted/wanted_repository.dart';
 import 'package:tcgmarketcordoba/shared/models/listing.dart';
+import 'package:tcgmarketcordoba/shared/models/wanted_order.dart';
 
 class _FakeListingRepository implements ListingRepository {
   @override
@@ -15,9 +17,40 @@ class _FakeListingRepository implements ListingRepository {
   Future<Listing> fetchById(String id) => throw UnimplementedError();
 }
 
-(ProviderContainer, Widget) _harness() {
+WantedOrder _wantedOrder({String cardName = 'Viktor'}) => WantedOrder(
+      id: 'w-1',
+      buyerId: 'b-1',
+      cardName: cardName,
+      setName: 'Origins',
+      isFoil: false,
+      maxPrice: 5000,
+      quantity: 1,
+      status: 'active',
+      buyerUsername: 'comprador',
+      buyerCity: 'Córdoba',
+      createdAt: DateTime.parse('2026-07-01T10:00:00Z'),
+    );
+
+class _FakeWantedRepository implements WantedRepository {
+  final List<WantedOrder> orders;
+  _FakeWantedRepository(this.orders);
+
+  @override
+  Future<List<WantedOrder>> fetchActive({String? query}) async {
+    if (query == null || query.isEmpty) return orders;
+    return orders
+        .where((o) => o.cardName.toLowerCase().contains(query.toLowerCase()))
+        .toList();
+  }
+
+  @override
+  Future<WantedOrder> fetchById(String id) async => orders.first;
+}
+
+(ProviderContainer, Widget) _harness({List<WantedOrder> wantedOrders = const []}) {
   final container = ProviderContainer(overrides: [
     listingRepositoryProvider.overrideWithValue(_FakeListingRepository()),
+    wantedRepositoryProvider.overrideWithValue(_FakeWantedRepository(wantedOrders)),
   ]);
   final router = GoRouter(
     initialLocation: '/',
@@ -87,5 +120,58 @@ void main() {
 
     expect(find.text('Todavía no hay cartas publicadas'), findsOneWidget);
     expect(find.text('Publicá la primera'), findsOneWidget);
+  });
+
+  testWidgets('toggle "Se busca" muestra el tablero de demanda de otros',
+      (tester) async {
+    final (container, widget) =
+        _harness(wantedOrders: [_wantedOrder(cardName: 'Kha\'Zix')]);
+    addTearDown(container.dispose);
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Se busca'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kha\'Zix'), findsOneWidget);
+  });
+
+  testWidgets(
+      'tablero "Se busca": empty state con query ofrece publicar búsqueda '
+      'prefillada', (tester) async {
+    final (container, widget) =
+        _harness(wantedOrders: [_wantedOrder(cardName: 'Kha\'Zix')]);
+    addTearDown(container.dispose);
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Se busca'));
+    await tester.pumpAndSettle();
+    container.read(searchQueryProvider.notifier).state = 'jinx';
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nadie está buscando "jinx" todavía'), findsOneWidget);
+    final cta = find.text('Publicar búsqueda de "jinx"');
+    expect(cta, findsOneWidget);
+
+    await tester.tap(cta);
+    await tester.pumpAndSettle();
+    expect(find.text('NEW q=jinx'), findsOneWidget);
+  });
+
+  testWidgets(
+      'tablero "Se busca": empty state sin query mantiene el mensaje '
+      'genérico', (tester) async {
+    final (container, widget) = _harness();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Se busca'));
+    await tester.pumpAndSettle();
+
+    expect(
+        find.text('Todavía nadie publicó qué está buscando'), findsOneWidget);
+    expect(find.text('Publicar una búsqueda'), findsOneWidget);
   });
 }

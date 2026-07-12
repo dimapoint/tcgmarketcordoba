@@ -7,8 +7,6 @@ import 'package:tcgmarketcordoba/core/api/session.dart';
 import 'package:tcgmarketcordoba/features/auth/auth_provider.dart';
 import 'package:tcgmarketcordoba/features/my_wanted/my_wanted_repository.dart';
 import 'package:tcgmarketcordoba/features/wanted/screens/wanted_screen.dart';
-import 'package:tcgmarketcordoba/features/wanted/wanted_provider.dart';
-import 'package:tcgmarketcordoba/features/wanted/wanted_repository.dart';
 import 'package:tcgmarketcordoba/shared/models/wanted_order.dart';
 
 WantedOrder _order({String? cardImageUrl}) => WantedOrder(
@@ -25,22 +23,6 @@ WantedOrder _order({String? cardImageUrl}) => WantedOrder(
       cardImageUrl: cardImageUrl,
       createdAt: DateTime.parse('2026-07-01T10:00:00Z'),
     );
-
-class _FakeWantedRepository implements WantedRepository {
-  final List<WantedOrder> orders;
-  _FakeWantedRepository(this.orders);
-
-  @override
-  Future<List<WantedOrder>> fetchActive({String? query}) async {
-    if (query == null || query.isEmpty) return orders;
-    return orders
-        .where((o) => o.cardName.toLowerCase().contains(query.toLowerCase()))
-        .toList();
-  }
-
-  @override
-  Future<WantedOrder> fetchById(String id) async => orders.first;
-}
 
 class _FakeMyWantedRepository implements MyWantedRepository {
   final List<WantedOrder> orders;
@@ -65,12 +47,10 @@ const _session = AuthSession(
 );
 
 (ProviderContainer, Widget) _harness({
-  required List<WantedOrder> orders,
   List<WantedOrder> myOrders = const [],
   bool signedIn = false,
 }) {
   final container = ProviderContainer(overrides: [
-    wantedRepositoryProvider.overrideWithValue(_FakeWantedRepository(orders)),
     myWantedRepositoryProvider
         .overrideWithValue(_FakeMyWantedRepository(myOrders)),
     authSessionProvider
@@ -82,9 +62,11 @@ const _session = AuthSession(
       GoRoute(path: '/wanted', builder: (c, s) => const WantedScreen()),
       GoRoute(
         path: '/wanted/new',
-        builder: (c, s) => Scaffold(
-          body: Text('NEW q=${s.uri.queryParameters['q'] ?? ''}'),
-        ),
+        builder: (c, s) => const Scaffold(body: Text('NEW')),
+      ),
+      GoRoute(
+        path: '/sign-in',
+        builder: (c, s) => const Scaffold(body: Text('SIGN-IN')),
       ),
     ],
   );
@@ -96,67 +78,60 @@ const _session = AuthSession(
 }
 
 void main() {
-  testWidgets('FAB "Publicar búsqueda" visible con tablero poblado y navega '
-      'a /wanted/new', (tester) async {
-    final (container, widget) = _harness(orders: [_order()]);
+  testWidgets('sin sesión pide iniciar sesión y no muestra el FAB',
+      (tester) async {
+    final (container, widget) = _harness(signedIn: false);
     addTearDown(container.dispose);
     await tester.pumpWidget(widget);
     await tester.pumpAndSettle();
 
-    expect(find.text('Viktor'), findsOneWidget);
+    expect(find.text('Iniciá sesión para ver tus búsquedas'), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
+
+    await tester.tap(find.text('Iniciar sesión'));
+    await tester.pumpAndSettle();
+    expect(find.text('SIGN-IN'), findsOneWidget);
+  });
+
+  testWidgets('con sesión y sin búsquedas ofrece publicar la primera',
+      (tester) async {
+    final (container, widget) = _harness(signedIn: true, myOrders: []);
+    addTearDown(container.dispose);
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    expect(find.text('No tenés búsquedas activas'), findsOneWidget);
+    final cta = find.text('Publicar una búsqueda');
+    expect(cta, findsOneWidget);
+
+    await tester.tap(cta);
+    await tester.pumpAndSettle();
+    expect(find.text('NEW'), findsOneWidget);
+  });
+
+  testWidgets('FAB "Publicar búsqueda" navega a /wanted/new', (tester) async {
+    final (container, widget) = _harness(signedIn: true, myOrders: [_order()]);
+    addTearDown(container.dispose);
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
     final fab = find.widgetWithText(FloatingActionButton, 'Publicar búsqueda');
     expect(fab, findsOneWidget);
 
     await tester.tap(fab);
     await tester.pumpAndSettle();
-    expect(find.text('NEW q='), findsOneWidget);
+    expect(find.text('NEW'), findsOneWidget);
   });
 
-  testWidgets('empty state con query ofrece publicar búsqueda prefillada',
-      (tester) async {
-    final (container, widget) = _harness(orders: [_order()]);
-    addTearDown(container.dispose);
-    await tester.pumpWidget(widget);
-    await tester.pumpAndSettle();
-
-    container.read(wantedSearchQueryProvider.notifier).state = 'jinx';
-    await tester.pumpAndSettle();
-
-    expect(find.text('Nadie está buscando "jinx" todavía'), findsOneWidget);
-    final cta = find.text('Publicar búsqueda de "jinx"');
-    expect(cta, findsOneWidget);
-
-    await tester.tap(cta);
-    await tester.pumpAndSettle();
-    expect(find.text('NEW q=jinx'), findsOneWidget);
-  });
-
-  testWidgets('empty state sin query mantiene el mensaje genérico',
-      (tester) async {
-    final (container, widget) = _harness(orders: []);
-    addTearDown(container.dispose);
-    await tester.pumpWidget(widget);
-    await tester.pumpAndSettle();
-
-    expect(
-        find.text('Todavía nadie publicó qué está buscando'), findsOneWidget);
-    expect(find.text('Publicar una búsqueda'), findsOneWidget);
-  });
-
-  testWidgets('Mis búsquedas muestra la imagen de catálogo de la carta',
-      (tester) async {
+  testWidgets('muestra la imagen de catálogo de la carta', (tester) async {
     final (container, widget) = _harness(
-      orders: [],
+      signedIn: true,
       myOrders: [
         _order(cardImageUrl: 'http://api.local/card-images/abc.png'),
       ],
-      signedIn: true,
     );
     addTearDown(container.dispose);
     await tester.pumpWidget(widget);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Mis búsquedas'));
     await tester.pumpAndSettle();
 
     expect(find.text('Viktor'), findsOneWidget);

@@ -5,6 +5,12 @@ import 'listing_repository.dart';
 
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
+/// Qué lado del mercado se muestra en Explorar: cartas en venta o búsquedas
+/// (demanda) de otros compradores.
+enum MarketSide { selling, wanted }
+
+final marketSideProvider = StateProvider<MarketSide>((ref) => MarketSide.selling);
+
 final listingsProvider = FutureProvider.autoDispose<List<Listing>>((ref) {
   final query = ref.watch(searchQueryProvider);
   return ref.watch(listingRepositoryProvider).fetchActive(query: query);
