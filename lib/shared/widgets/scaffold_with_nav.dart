@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
+import '../../features/matches/matches_provider.dart';
 
 /// Shell adaptativo: bottom nav en móvil, header de marketplace en pantallas
 /// anchas (>= [AppTheme.mobileBreakpoint]).
-class ScaffoldWithNav extends StatelessWidget {
+class ScaffoldWithNav extends ConsumerWidget {
   final Widget child;
   const ScaffoldWithNav({super.key, required this.child});
 
@@ -25,18 +27,27 @@ class ScaffoldWithNav extends StatelessWidget {
         _ => 0,
       };
 
+  /// Badge de novedades solo sobre "Busco"; el resto de los ítems no
+  /// notifican nada.
+  static Widget _navIcon(IconData icon, String path, int unseen) {
+    final base = Icon(icon);
+    if (path != '/wanted' || unseen == 0) return base;
+    return Badge.count(count: unseen, child: base);
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).matchedLocation;
     final index = _indexOf(location);
     final isWide =
         MediaQuery.sizeOf(context).width >= AppTheme.mobileBreakpoint;
+    final unseen = ref.watch(unseenMatchesProvider).valueOrNull ?? 0;
 
     if (isWide) {
       return Scaffold(
         body: Column(
           children: [
-            _TopHeader(selectedIndex: index),
+            _TopHeader(selectedIndex: index, unseenMatches: unseen),
             Expanded(child: child),
           ],
         ),
@@ -51,8 +62,8 @@ class ScaffoldWithNav extends StatelessWidget {
         destinations: [
           for (final d in _destinations)
             NavigationDestination(
-              icon: Icon(d.icon),
-              selectedIcon: Icon(d.selectedIcon),
+              icon: _navIcon(d.icon, d.path, unseen),
+              selectedIcon: _navIcon(d.selectedIcon, d.path, unseen),
               label: d.label,
             ),
         ],
@@ -63,7 +74,8 @@ class ScaffoldWithNav extends StatelessWidget {
 
 class _TopHeader extends StatelessWidget {
   final int selectedIndex;
-  const _TopHeader({required this.selectedIndex});
+  final int unseenMatches;
+  const _TopHeader({required this.selectedIndex, required this.unseenMatches});
 
   @override
   Widget build(BuildContext context) {
@@ -96,6 +108,7 @@ class _TopHeader extends StatelessWidget {
                           label: d.label,
                           icon: selectedIndex == i ? d.selectedIcon : d.icon,
                           selected: selectedIndex == i,
+                          badgeCount: d.path == '/wanted' ? unseenMatches : 0,
                           onTap: () => context.go(d.path),
                         ),
                       ),
@@ -114,11 +127,13 @@ class _NavButton extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool selected;
+  final int badgeCount;
   final VoidCallback onTap;
   const _NavButton({
     required this.label,
     required this.icon,
     required this.selected,
+    this.badgeCount = 0,
     required this.onTap,
   });
 
@@ -126,10 +141,13 @@ class _NavButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final color = selected ? scheme.primary : scheme.onSurfaceVariant;
+    final iconWidget = Icon(icon, size: 20, color: color);
 
     return TextButton.icon(
       onPressed: onTap,
-      icon: Icon(icon, size: 20, color: color),
+      icon: badgeCount > 0
+          ? Badge.count(count: badgeCount, child: iconWidget)
+          : iconWidget,
       label: Text(
         label,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(color: color),

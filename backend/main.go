@@ -16,6 +16,7 @@ import (
 	"tcgmarketcordoba/internal/db"
 	"tcgmarketcordoba/internal/httpx"
 	"tcgmarketcordoba/internal/listings"
+	"tcgmarketcordoba/internal/matches"
 	"tcgmarketcordoba/internal/ogmeta"
 	"tcgmarketcordoba/internal/photos"
 	"tcgmarketcordoba/internal/prices"
@@ -80,6 +81,11 @@ func main() {
 	mux.Handle("POST /buy-orders", requireAuth(http.HandlerFunc(buyOrderH.Create)))
 	mux.Handle("PATCH /buy-orders/{id}", requireAuth(http.HandlerFunc(buyOrderH.Patch)))
 	mux.Handle("GET /me/buy-orders", requireAuth(http.HandlerFunc(buyOrderH.MyBuyOrders)))
+
+	matchH := &matches.Handler{Store: matches.NewPgStore(pool)}
+	mux.Handle("GET /me/matches", requireAuth(http.HandlerFunc(matchH.List)))
+	mux.Handle("GET /me/matches/count", requireAuth(http.HandlerFunc(matchH.UnseenCount)))
+	mux.Handle("POST /me/matches/seen", requireAuth(http.HandlerFunc(matchH.MarkSeen)))
 
 	profileStore := profiles.NewPgStore(pool)
 	profileH := &profiles.Handler{Store: profileStore}
