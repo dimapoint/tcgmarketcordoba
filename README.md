@@ -5,6 +5,7 @@ Marketplace peer-to-peer de cartas TCG para **Córdoba, Argentina**. Los usuario
 - **Frontend:** Flutter (Android · iOS · Web · Windows · macOS · Linux)
 - **Backend:** API Go (`net/http` stdlib) con auth propia (JWT)
 - **Datos:** Postgres + Storage hosteados en Supabase, accedidos **solo** server-side
+- **Producción:** [tcgmarketcordoba.fly.dev](https://tcgmarketcordoba.fly.dev) (Fly.io, región `gru`)
 
 ---
 
@@ -16,6 +17,7 @@ Marketplace peer-to-peer de cartas TCG para **Córdoba, Argentina**. Los usuario
 - [Requisitos previos](#requisitos-previos)
 - [Configuración (variables de entorno)](#configuración-variables-de-entorno)
 - [Puesta en marcha](#puesta-en-marcha)
+- [Deploy](#deploy)
 - [API](#api)
 - [Schema de base de datos](#schema-de-base-de-datos)
 - [Migraciones](#migraciones)
@@ -26,19 +28,35 @@ Marketplace peer-to-peer de cartas TCG para **Córdoba, Argentina**. Los usuario
 
 ## Características
 
-- **Explorar** — los listados activos son visibles **sin cuenta**; filtrables por nombre de carta.
-- **Publicar** — flujo en 3 pasos: elegir carta → condición y precio → fotos.
-  - Fotos **opcionales** (hasta 3; la primera es la portada).
-  - Descripción opcional.
-- **Mis publicaciones** — gestión propia: marcar como vendida o eliminar.
-- **Perfil** — ciudad y hasta 4 métodos de contacto (WhatsApp, Instagram, Telegram, Email), con **validación de formato** (número de WhatsApp numérico, handles de Instagram/Telegram, email) tanto en cliente como en backend.
-- **Autenticación propia** — registro e inicio de sesión con JWT emitido por el backend (access token 15 min + refresh token rotativo de 30 días). Rutas protegidas con redirección automática.
-- **Alcance geográfico** — marketplace acotado a Córdoba.
+- **Explorar** — listados y búsquedas activos visibles **sin cuenta**; toggle *En venta* / *Se busca*; filtrables por nombre de carta.
+- **Publicar venta** — flujo en 3 pasos: elegir carta del catálogo → condición y precio → fotos opcionales (hasta 3; la primera es la portada). Descripción opcional. Precio de referencia de mercado (TCGPlayer + cotización dólar → ARS) como ayuda al publicar.
+- **Busco** — publicar búsquedas (`buy_orders`): carta, precio máximo, cantidad y condición mínima opcionales. Una búsqueda activa por carta.
+- **Matches** — cuando alguien publica una carta que matchea tus búsquedas activas, aparece en “Busco” con badge de novedades en la navegación.
+- **Mis Cartas** — gestión propia: marcar como vendida o eliminar; compartir la “carpeta” pública del vendedor.
+- **Página de vendedor** — ruta pública `/u/{username}` con ventas y búsquedas activas (sin exponer contactos).
+- **Compartir** — botón de share en detalle de listado/búsqueda (Web Share / WhatsApp / copiar link). Previews Open Graph inyectados por el backend para WhatsApp y redes.
+- **Perfil** — ciudad y hasta 4 métodos de contacto (WhatsApp, Instagram, Telegram, Email), con **validación de formato** en cliente y backend.
+- **Onboarding** — slides de bienvenida tras el primer login.
+- **Autenticación propia** — registro e inicio de sesión con JWT (access 15 min + refresh rotativo 30 días). Rutas protegidas con redirección automática.
+- **Admin** — panel para usuarios con `is_admin`: stats, moderación de publicaciones y búsquedas, sync del catálogo Riftbound.
+- **Alcance geográfico** — marketplace acotado a Córdoba. Sin pagos ni envíos in-app.
 
 **Condiciones de carta** (selector de publicación): `NM` Nueva · `MP` Jugada · `HP` Muy usada.
 El tipo `card_condition` de la DB también admite `LP` y `D` por compatibilidad con datos antiguos.
 
 **Estados de listado:** `active` · `sold` · `removed`.
+
+**Estados de búsqueda (buy order):** `active` · `fulfilled` · `removed`.
+
+**Deep links del SPA** (compartibles; no chocan con las rutas JSON de la API):
+
+| Path | Contenido |
+|------|-----------|
+| `/l/{id}` | Detalle de listado |
+| `/b/{id}` | Detalle de búsqueda |
+| `/u/{username}` | Página pública del vendedor |
+
+Los paths viejos `/listings/{id}` y `/buy-orders/{id}` redirigen a los cortos.
 
 ---
 
@@ -46,23 +64,29 @@ El tipo `card_condition` de la DB también admite `LP` y `D` por compatibilidad 
 
 La app Flutter habla **únicamente con la API Go**. Supabase quedó solo como hosting de Postgres y Storage, accedido server-side — se puede migrar la DB a Neon/Railway cambiando `DATABASE_URL`, y el Storage a S3/R2 reemplazando una sola struct (`internal/photos/storage.go`). **No hay dependencia de `supabase_flutter`.**
 
+En producción el mismo proceso Go sirve el build web de Flutter (`WEB_DIR`) e inyecta meta tags Open Graph según la ruta, para que los links compartidos muestren preview.
+
 ```
 Flutter ──HTTP/JSON──▶ API Go ──pgx──▶ Postgres (Supabase hosting)
-                          └──REST + service role key──▶ Supabase Storage (fotos)
+              │            ├──REST + service role──▶ Supabase Storage (fotos)
+              │            ├──proxy──▶ CDN de arte de cartas (cache local)
+              │            └──(prod) SPA Flutter + OG tags (WEB_DIR)
 ```
 
-| Capa           | Tecnología                                                    |
-|----------------|---------------------------------------------------------------|
-| Frontend       | Flutter 3 · Riverpod · GoRouter · http · google_fonts         |
-| Backend        | Go 1.22+ (`net/http` stdlib, sin framework)                   |
-| Auth           | JWT HS256 propio + refresh tokens rotativos · passwords bcrypt |
-| Base de datos  | Postgres (hosteado en Supabase, backend conecta como owner)   |
-| Storage        | Supabase Storage vía backend (service role key)               |
+| Capa           | Tecnología                                                         |
+|----------------|--------------------------------------------------------------------|
+| Frontend       | Flutter 3 · Riverpod · GoRouter · http · google_fonts · share_plus |
+| Backend        | Go 1.26+ (`net/http` stdlib, sin framework)                        |
+| Auth           | JWT HS256 propio + refresh tokens rotativos · passwords bcrypt     |
+| Base de datos  | Postgres (hosteado en Supabase, backend conecta como owner)        |
+| Storage        | Supabase Storage vía backend (service role key)                    |
+| Catálogo       | Sync Riftbound (Riftcodex / Riot content) server-side              |
+| Deploy         | Fly.io (API + web en un solo contenedor)                           |
 
 **Detalles clave**
 
-- **Backend:** paquetes por feature en `internal/` (`auth`, `listings`, `cards`, `profiles`, `photos`). Cada uno expone una interfaz `Store` (implementación pgx) y handlers testeados contra stores fake. Dependencias intencionalmente mínimas: `pgx/v5`, `golang-jwt/v5`, `x/crypto`.
-- **Frontend:** `ApiClient` agrega el header JWT y hace **auto-refresh-and-retry en 401**; `TokenStore` persiste con `shared_preferences`; los repositorios `Api*Repository` envuelven `ApiClient` y las pantallas dependen de interfaces abstractas. Routing con GoRouter y redirect de auth dirigido por `authSessionProvider`.
+- **Backend:** paquetes por feature en `internal/` (`auth`, `listings`, `buyorders`, `matches`, `cards`, `prices`, `profiles`, `photos`, `sellers`, `admin`, `riftbound`, `ogmeta`, `webapp`, …). Cada uno expone una interfaz `Store` (implementación pgx) y handlers testeados contra stores fake. Dependencias intencionalmente mínimas: `pgx/v5`, `golang-jwt/v5`, `x/crypto`.
+- **Frontend:** `ApiClient` agrega el header JWT y hace **auto-refresh-and-retry en 401**; `TokenStore` persiste con `shared_preferences`; los repositorios `Api*Repository` envuelven `ApiClient` y las pantallas dependen de interfaces abstractas. Routing con GoRouter y redirect de auth dirigido por la sesión del `ApiClient`.
 - **Errores de API:** siempre `{"error": "<mensaje>"}` con el mensaje **en español**.
 
 ---
@@ -75,33 +99,54 @@ tcgmarketcordoba/
 │   ├── main.dart                 # Construye ApiClient y overridea el provider
 │   ├── core/
 │   │   ├── api/                  # ApiClient (JWT + auto-refresh), TokenStore, session
-│   │   ├── router/               # GoRouter con redirección de auth
-│   │   └── theme/                # Tema claro/oscuro (Space Grotesk / Inter)
+│   │   ├── onboarding/           # Persistencia de versión de onboarding vista
+│   │   ├── router/               # GoRouter con redirección de auth / admin
+│   │   └── theme/                # Tema (Space Grotesk / Inter)
 │   ├── features/
+│   │   ├── admin/                # Panel admin (stats, moderación, sync)
 │   │   ├── auth/                 # Sign in / Sign up
 │   │   ├── browse/               # Explorar + detalle de listado
-│   │   ├── post_listing/         # Publicar carta (flujo 3 pasos)
+│   │   ├── matches/              # Novedades que matchean búsquedas
 │   │   ├── my_listings/          # Mis publicaciones
-│   │   └── profile/              # Perfil, ciudad y contactos
+│   │   ├── my_wanted/            # Mis búsquedas (repo/provider)
+│   │   ├── onboarding/           # Slides de bienvenida
+│   │   ├── post_listing/         # Publicar carta (flujo 3 pasos)
+│   │   ├── post_wanted/          # Publicar búsqueda
+│   │   ├── profile/              # Perfil, ciudad y contactos
+│   │   ├── seller/               # Página pública /u/:username
+│   │   └── wanted/               # Tab Busco + detalle de búsqueda
 │   └── shared/
-│       ├── models/               # Listing, CardPrinting, Profile, City
-│       └── widgets/              # ConditionBadge, PhotoCarousel, ScaffoldWithNav
+│       ├── models/               # Listing, WantedOrder, MatchItem, Profile, …
+│       ├── share/                # Textos y fallbacks de compartir
+│       └── widgets/              # ConditionBadge, PhotoCarousel, ScaffoldWithNav, …
 ├── backend/                      # API Go
 │   ├── main.go                   # Wiring de rutas y arranque del server
+│   ├── cmd/riftbound-sync/       # CLI de sync de catálogo (opcional)
 │   ├── Dockerfile
 │   └── internal/
+│       ├── admin/                # Stats, moderación, sync cards
+│       ├── auth/                 # bcrypt, JWT, signup/signin/refresh/me
+│       ├── buyorders/            # Búsquedas (buy orders)
+│       ├── cards/                # Búsqueda de cartas + proxy de imágenes
 │       ├── config/               # Carga env (+ backend/.env local)
 │       ├── db/                   # Pool pgx (DATABASE_URL)
 │       ├── httpx/                # Helpers JSON, errores y CORS
-│       ├── auth/                 # bcrypt, JWT, signup/signin/refresh/me, middleware
 │       ├── listings/             # CRUD de publicaciones
-│       ├── cards/                # Búsqueda de cartas
+│       ├── matches/              # Matches de búsquedas + badge
+│       ├── ogmeta/               # Open Graph tags por ruta
+│       ├── photos/               # Upload multipart → Supabase Storage
+│       ├── prices/               # Referencia TCGPlayer + dólar
 │       ├── profiles/             # Perfil, contactos (+ validación), ciudades
-│       └── photos/               # Upload multipart → Supabase Storage
+│       ├── riftbound/            # Cliente + sync de contenido Riftbound
+│       ├── sellers/              # Página pública de vendedor
+│       └── webapp/               # SPA Flutter + inyección OG
 ├── supabase/
-│   └── migrations/               # 6 migraciones SQL (ver abajo)
+│   └── migrations/               # Migraciones SQL (ver abajo)
 ├── test/                         # Tests Flutter
-├── dev.ps1                       # Dev de un solo comando (backend + web hot reload)
+├── docs/                         # Specs, planes, draft Riot Developer Portal
+├── dev.ps1                       # Dev: backend + web hot reload
+├── deploy.ps1                    # Build web + fly deploy
+├── fly.toml                      # Config Fly.io
 ├── docker-compose.yml
 └── CLAUDE.md                     # Guía para agentes / notas de arquitectura
 ```
@@ -111,9 +156,10 @@ tcgmarketcordoba/
 ## Requisitos previos
 
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) ≥ 3.12
-- [Go](https://go.dev/dl/) ≥ 1.22
+- [Go](https://go.dev/dl/) ≥ 1.22 (el módulo pinnea 1.26.5)
 - [Docker](https://www.docker.com/) (opcional, solo para correr el backend en contenedor)
 - Un Postgres con las migraciones aplicadas (hoy: proyecto Supabase `tcgmarketcba`)
+- [Fly CLI](https://fly.io/docs/hands-on/install-flyctl/) (solo para deploy)
 
 ---
 
@@ -131,11 +177,23 @@ API_URL=http://localhost:8080
 
 ```env
 PORT=8080
-DATABASE_URL=postgresql://postgres:...@<host>:5432/postgres   # pooler IPv4 aws-1 en Supabase
+DATABASE_URL=postgresql://postgres:...@<host>:5432/postgres   # pooler IPv4 en Supabase
 JWT_SECRET=<64 chars aleatorios>
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+RIOT_API_KEY=<key de developer.riotgames.com>                 # sync de catálogo
+PUBLIC_URL=http://localhost:8080                              # base absoluta og:url / og:image
+# WEB_DIR=                                                    # solo prod: path al build Flutter
 ```
+
+| Variable | Obligatoria | Uso |
+|----------|:-----------:|-----|
+| `DATABASE_URL` | sí | Pool pgx |
+| `JWT_SECRET` | sí | Firma de access tokens |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | para fotos | Upload a Storage |
+| `RIOT_API_KEY` | para sync | Admin / CLI de catálogo Riftbound |
+| `PUBLIC_URL` | no (default localhost) | URLs absolutas en Open Graph |
+| `WEB_DIR` | no | Si está seteado, el server sirve el SPA + OG |
 
 ---
 
@@ -182,10 +240,25 @@ flutter build web   # build web
 
 ---
 
+## Deploy
+
+Producción corre en Fly.io: API Go + web Flutter en un solo contenedor (`WEB_DIR=/web`, `PUBLIC_URL=https://tcgmarketcordoba.fly.dev`).
+
+```powershell
+./deploy.ps1        # buildea Flutter web con la API_URL de prod y corre fly deploy
+```
+
+Requiere `flyctl` autenticado y secretos de Fly configurados (`DATABASE_URL`, `JWT_SECRET`, `SUPABASE_*`, etc.).
+
+---
+
 ## API
 
 Base URL = `API_URL`. Todos los errores devuelven `{"error": "<mensaje en español>"}`.
 ✔ = requiere `Authorization: Bearer <access_token>`.
+🛡 = requiere auth **y** `profiles.is_admin`.
+
+### Auth y salud
 
 | Método / Ruta | Auth | Descripción |
 |---|:--:|---|
@@ -194,13 +267,48 @@ Base URL = `API_URL`. Todos los errores devuelven `{"error": "<mensaje en españ
 | `POST /auth/signin` | — | Login → `{access_token, refresh_token, user}` |
 | `POST /auth/refresh` | — | Rota el refresh token → nuevos tokens |
 | `GET /auth/me` | ✔ | Usuario actual |
-| `GET /listings?query=` | — | Listados activos (búsqueda opcional) |
+
+### Listados y fotos
+
+| Método / Ruta | Auth | Descripción |
+|---|:--:|---|
+| `GET /listings?query=` | — | Listados activos (búsqueda opcional por nombre) |
 | `GET /listings/{id}` | — | Detalle de listado |
 | `POST /listings` | ✔ | Crear publicación |
 | `PATCH /listings/{id}` | ✔ | Cambiar estado (solo dueño) |
 | `POST /listings/{id}/photos` | ✔ | Subir foto (multipart, hasta 3) |
-| `GET /me/listings?status=` | ✔ | Mis publicaciones |
+| `GET /me/listings?status=` | ✔ | Mis publicaciones (`active` por default) |
+
+### Búsquedas (buy orders)
+
+| Método / Ruta | Auth | Descripción |
+|---|:--:|---|
+| `GET /buy-orders?query=` | — | Búsquedas activas |
+| `GET /buy-orders/{id}` | — | Detalle de búsqueda |
+| `POST /buy-orders` | ✔ | Crear búsqueda (una activa por carta) |
+| `PATCH /buy-orders/{id}` | ✔ | Cambiar estado (solo dueño) |
+| `GET /me/buy-orders?status=` | ✔ | Mis búsquedas (`active` por default) |
+
+### Matches
+
+| Método / Ruta | Auth | Descripción |
+|---|:--:|---|
+| `GET /me/matches` | ✔ | Listings ajenos que matchean búsquedas activas propias |
+| `GET /me/matches/count` | ✔ | Cantidad de novedades no vistas |
+| `POST /me/matches/seen` | ✔ | Marcar novedades como vistas |
+
+### Catálogo, imágenes y precios
+
+| Método / Ruta | Auth | Descripción |
+|---|:--:|---|
 | `GET /cards/search?q=` | — | Búsqueda de cartas (mín. 2 chars) |
+| `GET /card-images/{file}` | — | Proxy/cache de arte oficial |
+| `GET /card-printings/{id}/price-reference` | — | Precio de referencia mercado + FX a ARS |
+
+### Perfil, contactos, ciudades y vendedores
+
+| Método / Ruta | Auth | Descripción |
+|---|:--:|---|
 | `GET /cities` | — | Ciudades (referencia) |
 | `GET /profiles/{id}/contacts` | — | Contactos del vendedor |
 | `GET /me/profile` | ✔ | Mi perfil |
@@ -208,6 +316,19 @@ Base URL = `API_URL`. Todos los errores devuelven `{"error": "<mensaje en españ
 | `GET /me/contacts` | ✔ | Mis métodos de contacto |
 | `PUT /me/contacts` | ✔ | Crear / actualizar método de contacto (validado) |
 | `DELETE /me/contacts/{id}` | ✔ | Eliminar método de contacto |
+| `GET /sellers/{username}` | — | Página pública: perfil + listings y buy-orders activos |
+
+### Admin
+
+| Método / Ruta | Auth | Descripción |
+|---|:--:|---|
+| `GET /admin/stats` | 🛡 | Métricas agregadas |
+| `GET /admin/listings` | 🛡 | Listar publicaciones (filtros status/query) |
+| `PATCH /admin/listings/{id}` | 🛡 | Moderar listado |
+| `GET /admin/buy-orders` | 🛡 | Listar búsquedas |
+| `PATCH /admin/buy-orders/{id}` | 🛡 | Moderación de búsqueda |
+| `POST /admin/sync-cards` | 🛡 | Disparar sync de catálogo Riftbound |
+| `GET /admin/sync-cards` | 🛡 | Estado del sync en curso |
 
 **Validación de contactos** (`internal/profiles/contact_validation.go`, espejada en el cliente):
 
@@ -225,14 +346,17 @@ Diseño en BCNF con auth propia (tabla `users` propia, **no** `auth.users` de Su
 ```
 provinces → cities
 games → sets, card_types, rarities, domains, keywords
-cards → card_printings (set + rarity + foil + alt-art)
-users → profiles → contact_methods
+cards → card_printings (set + rarity + foil + alt-art + tcgplayer_id)
+users → profiles (username, city, is_admin, matches_seen_at)
+       → contact_methods
 users → refresh_tokens (rotativos, hasheados con SHA-256)
 listings (seller, card_printing, condition, price, city, status)
   └── listing_photos (hasta 3 por listado, ordenadas)
+buy_orders (buyer, card_printing, min_condition, max_price, quantity, status)
 ```
 
 - `profiles.id` referencia `users.id`. El `username` por defecto es la parte local del email.
+- Una sola buy order `active` por (buyer, card_printing).
 - Existen políticas RLS pero son **legado**: el backend conecta como owner de las tablas.
 
 ---
@@ -249,6 +373,13 @@ En `supabase/migrations/`, se aplican en orden:
 | `20260626000004_rls_policies.sql` | Políticas RLS (legado) |
 | `20260702000001_app_auth.sql` | Auth propia: `users`, `refresh_tokens`, FK de `profiles` |
 | `20260703000001_printing_rarity_and_altart.sql` | Rareza por printing y alt-art |
+| `20260704000001_riot_content_sync.sql` | Columnas / soporte para sync de contenido Riot |
+| `20260704000002_buy_orders.sql` | Tabla `buy_orders` |
+| `20260705000001_foil_only_printings.sql` | Printings solo foil |
+| `20260708000001_tcgplayer_id_prices.sql` | `tcgplayer_id` y soporte de precios de referencia |
+| `20260710000001_admin_flag.sql` | `profiles.is_admin` |
+| `20260711000001_unique_active_buy_orders.sql` | Una búsqueda activa por carta por usuario |
+| `20260711000002_match_notifications.sql` | `profiles.matches_seen_at` (badge de novedades) |
 
 Aplicar:
 
@@ -262,8 +393,8 @@ supabase db push
 
 ## Tests
 
-- **Backend (Go):** handlers testeados contra stores fake + unit tests de JWT, bcrypt y validación de contactos (`go test ./...`).
-- **Frontend (Flutter):** `ApiClient` con `MockClient` (persistencia de tokens, auto-refresh en 401), router, modelos, providers y repositorios (`flutter test`).
+- **Backend (Go):** handlers testeados contra stores fake por feature package (`auth`, `listings`, `buyorders`, `matches`, `admin`, `sellers`, `prices`, `ogmeta`, `webapp`, …) + unit tests de JWT, bcrypt y validación de contactos (`go test ./...`).
+- **Frontend (Flutter):** `ApiClient` con `MockClient` (persistencia de tokens, auto-refresh en 401), router, modelos, providers, repositorios y widget tests de pantallas clave (`flutter test`).
 
 ```bash
 cd backend && go test ./...
@@ -284,3 +415,5 @@ flutter test
 ## Plataformas
 
 Android · iOS · Web · Windows · macOS · Linux
+
+La distribución principal hoy es **web** en Fly.io; el mismo codebase Flutter puede generar builds nativos.
