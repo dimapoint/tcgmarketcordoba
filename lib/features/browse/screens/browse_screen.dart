@@ -93,38 +93,45 @@ class _SellingGrid extends ConsumerWidget {
     return listings.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
-      data: (items) => items.isEmpty
-          ? (query.isEmpty
-              ? EmptyState(
-                  icon: Icons.style_outlined,
-                  message: 'Todavía no hay cartas publicadas',
-                  actionLabel: 'Publicá la primera',
-                  onAction: () => context.go('/post'),
-                )
-              // Nadie vende esa carta: el paso natural en un sitio
-              // nuevo es publicar la búsqueda, no vender.
-              : EmptyState(
-                  icon: Icons.style_outlined,
-                  message: 'No hay publicaciones de "$query"',
-                  actionLabel: 'Publicar una búsqueda',
-                  onAction: () => context.go(_newWantedUri(query)),
-                  secondaryActionLabel: 'Vendela vos',
-                  onSecondaryAction: () => context.go('/post'),
-                ))
-          : RefreshIndicator(
-              onRefresh: () async => ref.invalidate(listingsProvider),
-              child: GridView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 230,
-                  childAspectRatio: 0.62,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
+      data: (state) {
+        final items = state.items;
+        return items.isEmpty
+            ? (query.isEmpty
+                ? EmptyState(
+                    icon: Icons.style_outlined,
+                    message: 'Todavía no hay cartas publicadas',
+                    actionLabel: 'Publicá la primera',
+                    onAction: () => context.go('/post'),
+                  )
+                : EmptyState(
+                    icon: Icons.style_outlined,
+                    message: 'No hay publicaciones de "$query"',
+                    actionLabel: 'Publicar una búsqueda',
+                    onAction: () => context.go(_newWantedUri(query)),
+                    secondaryActionLabel: 'Vendela vos',
+                    onSecondaryAction: () => context.go('/post'),
+                  ))
+            : RefreshIndicator(
+                onRefresh: () async => ref.invalidate(listingsProvider),
+                child: GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 230,
+                    childAspectRatio: 0.62,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  itemCount: items.length + (state.hasMore ? 1 : 0),
+                  itemBuilder: (_, i) {
+                    if (i == items.length) {
+                      Future.microtask(() => ref.read(listingsProvider.notifier).loadMore());
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    return ListingCard(listing: items[i]);
+                  },
                 ),
-                itemCount: items.length,
-                itemBuilder: (_, i) => ListingCard(listing: items[i]),
-              ),
-            ),
+              );
+      },
     );
   }
 }
@@ -143,29 +150,41 @@ class _WantedBoard extends ConsumerWidget {
     return orders.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
-      data: (items) => items.isEmpty
-          ? (query.isEmpty
-              ? EmptyState(
-                  icon: Icons.travel_explore_outlined,
-                  message: 'Todavía nadie publicó qué está buscando',
-                  actionLabel: 'Publicar una búsqueda',
-                  onAction: () => context.go('/wanted/new'),
-                )
-              : EmptyState(
-                  icon: Icons.travel_explore_outlined,
-                  message: 'Nadie está buscando "$query" todavía',
-                  actionLabel: 'Publicar búsqueda de "$query"',
-                  onAction: () => context.go(_newWantedUri(query)),
-                ))
-          : RefreshIndicator(
-              onRefresh: () async => ref.invalidate(wantedOrdersProvider),
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                itemCount: items.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
-                itemBuilder: (_, i) => WantedCard(order: items[i]),
-              ),
-            ),
+      data: (state) {
+        final items = state.items;
+        return items.isEmpty
+            ? (query.isEmpty
+                ? EmptyState(
+                    icon: Icons.travel_explore_outlined,
+                    message: 'Todavía nadie publicó qué está buscando',
+                    actionLabel: 'Publicar una búsqueda',
+                    onAction: () => context.go('/wanted/new'),
+                  )
+                : EmptyState(
+                    icon: Icons.travel_explore_outlined,
+                    message: 'Nadie está buscando "$query" todavía',
+                    actionLabel: 'Publicar búsqueda de "$query"',
+                    onAction: () => context.go(_newWantedUri(query)),
+                  ))
+            : RefreshIndicator(
+                onRefresh: () async => ref.invalidate(wantedOrdersProvider),
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  itemCount: items.length + (state.hasMore ? 1 : 0),
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    if (i == items.length) {
+                      Future.microtask(() => ref.read(wantedOrdersProvider.notifier).loadMore());
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    return WantedCard(order: items[i]);
+                  },
+                ),
+              );
+      },
     );
   }
 }

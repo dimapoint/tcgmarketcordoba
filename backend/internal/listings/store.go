@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -13,7 +15,7 @@ import (
 )
 
 type Store interface {
-	Active(ctx context.Context, query string) ([]Listing, error)
+	Active(ctx context.Context, query string, cursorTime *time.Time, cursorID string, limit int) ([]Listing, error)
 	ByID(ctx context.Context, id string) (Listing, error)
 	Mine(ctx context.Context, sellerID, status string) ([]Listing, error)
 	Create(ctx context.Context, p CreateParams) (Listing, error)
@@ -73,10 +75,19 @@ func scanListing(row pgx.Row) (Listing, error) {
 	return l, nil
 }
 
-func (s *PgStore) Active(ctx context.Context, query string) ([]Listing, error) {
-	rows, err := s.pool.Query(ctx, selectListing+`
-		WHERE l.status = 'active' AND ($1 = '' OR c.name ILIKE '%'||$1||'%')
-		ORDER BY l.created_at DESC`, query)
+func (s *PgStore) Active(ctx context.Context, query string, cursorTime *time.Time, cursorID string, limit int) ([]Listing, error) {
+	where := `l.status = 'active' AND ($1 = '' OR c.name ILIKE '%'||$1||'%')`
+	args := []any{query}
+
+	if cursorTime != nil {
+		where += ` AND (l.created_at, l.id) < ($2, $3)`
+		args = append(args, *cursorTime, cursorID)
+	}
+
+	q := selectListing + ` WHERE ` + where + ` ORDER BY l.created_at DESC, l.id DESC LIMIT $` + strconv.Itoa(len(args)+1)
+	args = append(args, limit)
+
+	rows, err := s.pool.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}

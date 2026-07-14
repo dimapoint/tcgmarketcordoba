@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
-
 	"tcgmarketcordoba/internal/auth"
+	"tcgmarketcordoba/internal/httpx"
 )
 
 type fakeStore struct {
@@ -18,7 +18,7 @@ type fakeStore struct {
 	created     *CreateParams
 }
 
-func (f *fakeStore) Active(_ context.Context, query string) ([]Listing, error) {
+func (f *fakeStore) Active(_ context.Context, query string, _ *time.Time, _ string, _ int) ([]Listing, error) {
 	out := []Listing{}
 	for _, l := range f.items {
 		if l.Status == "active" {
@@ -93,11 +93,14 @@ func TestListReturnsActiveListings(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	var out []Listing
+	var out httpx.PageResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
 		t.Fatal(err)
 	}
-	if len(out) != 1 || out[0].CardName != "Jinx" {
+	data, _ := json.Marshal(out.Data)
+	var ls []Listing
+	json.Unmarshal(data, &ls)
+	if len(ls) != 1 || ls[0].CardName != "Jinx" {
 		t.Fatalf("unexpected body: %s", rec.Body)
 	}
 }

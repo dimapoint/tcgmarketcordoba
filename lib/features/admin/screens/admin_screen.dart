@@ -98,12 +98,12 @@ class _StatsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tiles = [
-      ('Usuarios', stats.users),
-      ('Publicaciones activas', stats.activeListings),
-      ('Buscados activos', stats.activeBuyOrders),
-      ('Usuarios (7d)', stats.newUsers7d),
-      ('Publicaciones (7d)', stats.newListings7d),
-      ('Buscados (7d)', stats.newBuyOrders7d),
+      ('Usuarios', stats.users, Icons.people),
+      ('Publicaciones activas', stats.activeListings, Icons.storefront),
+      ('Buscados activos', stats.activeBuyOrders, Icons.manage_search),
+      ('Usuarios (7d)', stats.newUsers7d, Icons.person_add),
+      ('Publicaciones (7d)', stats.newListings7d, Icons.add_business),
+      ('Buscados (7d)', stats.newBuyOrders7d, Icons.search),
     ];
     return GridView.count(
       crossAxisCount: 3,
@@ -111,16 +111,22 @@ class _StatsGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 8,
       crossAxisSpacing: 8,
-      childAspectRatio: 1.3,
+      childAspectRatio: 1.1,
       children: tiles
           .map((t) => Card(
+                elevation: 2,
                 child: Padding(
                   padding: const EdgeInsets.all(8),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      Icon(t.$3, size: 28, color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(height: 8),
                       Text('${t.$2}',
-                          style: Theme.of(context).textTheme.headlineSmall),
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              )),
                       const SizedBox(height: 4),
                       Text(t.$1,
                           textAlign: TextAlign.center,
@@ -192,7 +198,17 @@ class _ListingsTab extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Error: $e')),
             data: (items) => items.isEmpty
-                ? const Center(child: Text('Sin resultados'))
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inbox_outlined,
+                            size: 64, color: Theme.of(context).colorScheme.outline),
+                        const SizedBox(height: 16),
+                        const Text('Sin resultados', style: TextStyle(fontSize: 16)),
+                      ],
+                    ),
+                  )
                 : ListView.builder(
                     itemCount: items.length,
                     itemBuilder: (c, i) =>
@@ -213,6 +229,7 @@ class _ListingRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isRemoved = listing.status == 'removed';
     return ListTile(
+      leading: const CircleAvatar(child: Icon(Icons.style)),
       title: Text(listing.cardName),
       subtitle:
           Text('${listing.sellerUsername} · \$${listing.price.toStringAsFixed(0)}'),
@@ -220,11 +237,10 @@ class _ListingRow extends ConsumerWidget {
         spacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Chip(label: Text(listing.status)),
+          _buildStatusChip(context, listing.status),
           TextButton(
-            onPressed: () => ref
-                .read(adminActionsProvider.notifier)
-                .setListingStatus(listing.id, isRemoved ? 'active' : 'removed'),
+            onPressed: () => _confirmToggleStatus(
+                context, ref, listing.id, listing.status, true),
             child: Text(isRemoved ? 'Restaurar' : 'Quitar'),
           ),
         ],
@@ -258,7 +274,17 @@ class _BuyOrdersTab extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Error: $e')),
             data: (items) => items.isEmpty
-                ? const Center(child: Text('Sin resultados'))
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inbox_outlined,
+                            size: 64, color: Theme.of(context).colorScheme.outline),
+                        const SizedBox(height: 16),
+                        const Text('Sin resultados', style: TextStyle(fontSize: 16)),
+                      ],
+                    ),
+                  )
                 : ListView.builder(
                     itemCount: items.length,
                     itemBuilder: (c, i) =>
@@ -279,6 +305,7 @@ class _BuyOrderRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isRemoved = order.status == 'removed';
     return ListTile(
+      leading: const CircleAvatar(child: Icon(Icons.manage_search)),
       title: Text(order.cardName),
       subtitle: Text(
           '${order.buyerUsername} · hasta \$${order.maxPrice.toStringAsFixed(0)}'),
@@ -286,11 +313,10 @@ class _BuyOrderRow extends ConsumerWidget {
         spacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Chip(label: Text(order.status)),
+          _buildStatusChip(context, order.status),
           TextButton(
-            onPressed: () => ref
-                .read(adminActionsProvider.notifier)
-                .setBuyOrderStatus(order.id, isRemoved ? 'active' : 'removed'),
+            onPressed: () => _confirmToggleStatus(
+                context, ref, order.id, order.status, false),
             child: Text(isRemoved ? 'Restaurar' : 'Quitar'),
           ),
         ],
@@ -299,7 +325,7 @@ class _BuyOrderRow extends ConsumerWidget {
   }
 }
 
-class _FilterBar extends StatelessWidget {
+class _FilterBar extends StatefulWidget {
   final String status;
   final List<(String, String)> statusOptions;
   final ValueChanged<String> onStatusChanged;
@@ -313,6 +339,19 @@ class _FilterBar extends StatelessWidget {
   });
 
   @override
+  State<_FilterBar> createState() => _FilterBarState();
+}
+
+class _FilterBarState extends State<_FilterBar> {
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8),
@@ -320,26 +359,100 @@ class _FilterBar extends StatelessWidget {
         children: [
           Wrap(
             spacing: 8,
-            children: statusOptions
+            children: widget.statusOptions
                 .map((o) => ChoiceChip(
                       label: Text(o.$2),
-                      selected: status == o.$1,
-                      onSelected: (_) => onStatusChanged(o.$1),
+                      selected: widget.status == o.$1,
+                      onSelected: (_) => widget.onStatusChanged(o.$1),
                     ))
                 .toList(),
           ),
           const SizedBox(height: 8),
           TextField(
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
+            controller: _searchController,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  _searchController.clear();
+                  widget.onQueryChanged('');
+                },
+              ),
               hintText: 'Buscar por carta o usuario',
               isDense: true,
-              border: OutlineInputBorder(),
+              border: const OutlineInputBorder(),
             ),
-            onSubmitted: onQueryChanged,
+            onSubmitted: widget.onQueryChanged,
           ),
         ],
       ),
     );
+  }
+}
+
+Widget _buildStatusChip(BuildContext context, String status) {
+  final (Color bg, Color fg) = switch (status) {
+    'active' => (Colors.green.shade100, Colors.green.shade900),
+    'removed' => (Colors.red.shade100, Colors.red.shade900),
+    'sold' || 'fulfilled' => (Colors.blue.shade100, Colors.blue.shade900),
+    _ => (Colors.grey.shade200, Colors.grey.shade800),
+  };
+
+  return Chip(
+    label: Text(status),
+    backgroundColor: bg,
+    labelStyle: TextStyle(color: fg, fontWeight: FontWeight.bold),
+    side: BorderSide.none,
+  );
+}
+
+Future<void> _confirmToggleStatus(
+  BuildContext context,
+  WidgetRef ref,
+  String id,
+  String currentStatus,
+  bool isListing,
+) async {
+  final isRemoved = currentStatus == 'removed';
+  if (isRemoved) {
+    if (isListing) {
+      ref.read(adminActionsProvider.notifier).setListingStatus(id, 'active');
+    } else {
+      ref.read(adminActionsProvider.notifier).setBuyOrderStatus(id, 'active');
+    }
+    return;
+  }
+
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: const Text('Confirmar acción'),
+      content: Text(isListing
+          ? '¿Seguro que deseas quitar esta publicación?'
+          : '¿Seguro que deseas quitar este buscado?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(c, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(c, true),
+          style: FilledButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.error,
+            foregroundColor: Theme.of(context).colorScheme.onError,
+          ),
+          child: const Text('Quitar'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirm == true) {
+    if (isListing) {
+      ref.read(adminActionsProvider.notifier).setListingStatus(id, 'removed');
+    } else {
+      ref.read(adminActionsProvider.notifier).setBuyOrderStatus(id, 'removed');
+    }
   }
 }

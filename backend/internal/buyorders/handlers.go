@@ -14,12 +14,22 @@ var validStatuses = map[string]bool{"active": true, "fulfilled": true, "removed"
 type Handler struct{ Store Store }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	os, err := h.Store.Active(r.Context(), r.URL.Query().Get("query"))
+	cTime, cID, limit := httpx.ParsePagination(r)
+
+	os, err := h.Store.Active(r.Context(), r.URL.Query().Get("query"), cTime, cID, limit+1)
 	if err != nil {
 		httpx.Error(w, http.StatusInternalServerError, "error interno")
 		return
 	}
-	httpx.JSON(w, http.StatusOK, os)
+
+	nextCursor := ""
+	if len(os) > limit {
+		last := os[limit-1]
+		nextCursor = httpx.EncodeCursor(last.CreatedAt, last.ID)
+		os = os[:limit]
+	}
+
+	httpx.PageJSON(w, http.StatusOK, os, nextCursor)
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {

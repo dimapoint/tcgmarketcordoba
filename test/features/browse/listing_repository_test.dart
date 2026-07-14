@@ -31,7 +31,7 @@ Future<ApiListingRepository> _repo(String? cardImageUrl) async {
   final mock = MockClient((req) async {
     final body = req.url.path == '/listings/l1'
         ? jsonEncode(_listing(cardImageUrl: cardImageUrl))
-        : jsonEncode([_listing(cardImageUrl: cardImageUrl)]);
+        : jsonEncode({'data': [_listing(cardImageUrl: cardImageUrl)], 'next_cursor': null});
     return http.Response(body, 200,
         headers: {'content-type': 'application/json'});
   });

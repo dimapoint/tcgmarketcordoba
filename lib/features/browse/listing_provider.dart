@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_provider.dart';
+import '../../core/api/paginated.dart';
 import '../../shared/models/listing.dart';
 import 'listing_repository.dart';
 
@@ -11,10 +12,38 @@ enum MarketSide { selling, wanted }
 
 final marketSideProvider = StateProvider<MarketSide>((ref) => MarketSide.selling);
 
-final listingsProvider = FutureProvider.autoDispose<List<Listing>>((ref) {
-  final query = ref.watch(searchQueryProvider);
-  return ref.watch(listingRepositoryProvider).fetchActive(query: query);
-});
+class ListingsNotifier extends AutoDisposeAsyncNotifier<PaginatedState<Listing>> {
+  @override
+  Future<PaginatedState<Listing>> build() async {
+    final query = ref.watch(searchQueryProvider);
+    final page = await ref.watch(listingRepositoryProvider).fetchActivePage(query: query);
+    return PaginatedState(items: page.data, nextCursor: page.nextCursor);
+  }
+
+  Future<void> loadMore() async {
+    final current = state.valueOrNull;
+    if (current == null || !current.hasMore || current.isLoadingMore) return;
+
+    state = AsyncData(current.copyWith(isLoadingMore: true));
+    try {
+      final query = ref.read(searchQueryProvider);
+      final page = await ref.read(listingRepositoryProvider).fetchActivePage(
+        query: query,
+        cursor: current.nextCursor,
+      );
+      state = AsyncData(PaginatedState(
+        items: [...current.items, ...page.data],
+        nextCursor: page.nextCursor,
+      ));
+    } catch (e) {
+      state = AsyncData(current.copyWith(isLoadingMore: false));
+    }
+  }
+}
+
+final listingsProvider = AsyncNotifierProvider.autoDispose<ListingsNotifier, PaginatedState<Listing>>(
+  ListingsNotifier.new,
+);
 
 final listingDetailProvider =
     FutureProvider.autoDispose.family<Listing, String>((ref, id) {

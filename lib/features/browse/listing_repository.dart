@@ -2,10 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/api_provider.dart';
 import '../../core/api/api_urls.dart';
+import '../../core/api/paginated.dart';
 import '../../shared/models/listing.dart';
 
 abstract class ListingRepository {
   Future<List<Listing>> fetchActive({String? query});
+  Future<PaginatedList<Listing>> fetchActivePage({String? query, String? cursor, int limit = 20});
   Future<Listing> fetchById(String id);
 }
 
@@ -15,13 +17,21 @@ class ApiListingRepository implements ListingRepository {
 
   @override
   Future<List<Listing>> fetchActive({String? query}) async {
-    final data = await _api.get(
-      '/listings',
-      query: (query == null || query.isEmpty) ? null : {'query': query},
+    final page = await fetchActivePage(query: query);
+    return page.data;
+  }
+
+  @override
+  Future<PaginatedList<Listing>> fetchActivePage({String? query, String? cursor, int limit = 20}) async {
+    final params = <String, String>{'limit': limit.toString()};
+    if (query != null && query.isNotEmpty) params['query'] = query;
+    if (cursor != null && cursor.isNotEmpty) params['cursor'] = cursor;
+
+    final data = await _api.get('/listings', query: params);
+    return PaginatedList.fromJson(
+      data as Map<String, dynamic>,
+      (j) => _fromJson(j),
     );
-    return (data as List)
-        .map((j) => _fromJson(j as Map<String, dynamic>))
-        .toList();
   }
 
   @override
