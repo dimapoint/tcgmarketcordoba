@@ -8,9 +8,13 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-# .env raíz es un asset bundleado (público): en producción API_URL = mismo origen
+# .env raíz es un asset bundleado (público): en producción API_URL = mismo origen.
+# GOOGLE_CLIENT_ID (valor público) se conserva del .env local para que el botón
+# "Continuar con Google" aparezca en el build de prod.
 $envBackup = Get-Content .env -Raw
-Set-Content .env "API_URL=$AppUrl"
+$buildEnv = @("API_URL=$AppUrl")
+$buildEnv += ($envBackup -split "\r?\n") -match '^GOOGLE_CLIENT_ID='
+Set-Content .env ($buildEnv -join "`n")
 try {
     flutter build web --release
     if ($LASTEXITCODE -ne 0) { throw "flutter build web falló" }
