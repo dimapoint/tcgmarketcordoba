@@ -142,6 +142,17 @@ void main() {
     expect(find.text('Jinx'), findsOneWidget);
     await tester.tap(find.text('Quitar'));
     await tester.pumpAndSettle();
+
+    // Quitar pide confirmación; cancelar no llama al repo.
+    expect(find.text('Confirmar acción'), findsOneWidget);
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(repo.listingCalls, isEmpty);
+
+    await tester.tap(find.text('Quitar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Quitar'));
+    await tester.pumpAndSettle();
     expect(repo.listingCalls, [('l1', 'removed')]);
   });
 
