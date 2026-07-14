@@ -74,6 +74,24 @@ void main() {
     expect(api.session?.user.isAdmin, isFalse);
   });
 
+  test('signInWithGoogle posts id_token and stores session', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final mock = MockClient((req) async {
+      expect(req.url.path, '/auth/google');
+      expect(jsonDecode(req.body), {'id_token': 'google-tok'});
+      return http.Response(jsonEncode(_authBody('at1', 'rt1')), 200,
+          headers: {'content-type': 'application/json'});
+    });
+
+    final api = ApiClient(
+        baseUrl: 'http://x', tokens: TokenStore(prefs), httpClient: mock);
+    await api.signInWithGoogle(idToken: 'google-tok');
+
+    expect(api.session?.user.id, 'u1');
+    expect(TokenStore(prefs).load()?.accessToken, 'at1');
+  });
+
   test('401 triggers refresh and retries once', () async {
     SharedPreferences.setMockInitialValues({
       'auth.access_token': 'viejo',

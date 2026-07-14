@@ -47,8 +47,12 @@ func main() {
 	requireAuth := auth.Middleware(tokens)
 
 	authH := &auth.Handler{Store: auth.NewPgStore(pool), Tokens: tokens}
+	if cfg.GoogleClientID != "" {
+		authH.Google = &auth.TokenInfoVerifier{ClientID: cfg.GoogleClientID}
+	}
 	mux.HandleFunc("POST /auth/signup", authH.SignUp)
 	mux.HandleFunc("POST /auth/signin", authH.SignIn)
+	mux.HandleFunc("POST /auth/google", authH.GoogleSignIn)
 	mux.HandleFunc("POST /auth/refresh", authH.Refresh)
 	mux.Handle("GET /auth/me", requireAuth(http.HandlerFunc(authH.Me)))
 

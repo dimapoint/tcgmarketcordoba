@@ -17,6 +17,7 @@ const refreshTTL = 30 * 24 * time.Hour
 type Handler struct {
 	Store  Store
 	Tokens TokenIssuer
+	Google GoogleVerifier // nil si GOOGLE_CLIENT_ID no está configurado
 }
 
 type credentials struct {
@@ -73,6 +74,35 @@ func (h *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 	u, err := h.Store.UserByEmail(r.Context(), c.Email)
 	if err != nil || !CheckPassword(u.PasswordHash, c.Password) {
 		httpx.Error(w, http.StatusUnauthorized, "credenciales inválidas")
+		return
+	}
+	h.respondWithTokens(w, r, http.StatusOK, u)
+}
+
+func (h *Handler) GoogleSignIn(w http.ResponseWriter, r *http.Request) {
+	if h.Google == nil {
+		httpx.Error(w, http.StatusServiceUnavailable,
+			"el login con Google no está configurado")
+		return
+	}
+	var body struct {
+		IDToken string `json:"id_token"`
+	}
+	if err := httpx.Decode(r, &body); err != nil || body.IDToken == "" {
+		httpx.Error(w, http.StatusBadRequest, "cuerpo inválido")
+		return
+	}
+	email, err := h.Google.VerifyIDToken(r.Context(), body.IDToken)
+	if err != nil {
+		httpx.Error(w, http.StatusUnauthorized, "token de Google inválido")
+		return
+	}
+	u, err := h.Store.UserByEmail(r.Context(), email)
+	if errors.Is(err, ErrNotFound) {
+		u, err = h.Store.CreateGoogleUser(r.Context(), email)
+	}
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "error interno")
 		return
 	}
 	h.respondWithTokens(w, r, http.StatusOK, u)

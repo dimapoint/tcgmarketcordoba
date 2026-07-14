@@ -5,6 +5,7 @@ import '../../core/api/api_provider.dart';
 abstract class AuthRepository {
   Future<void> signUp({required String email, required String password});
   Future<void> signIn({required String email, required String password});
+  Future<void> signInWithGoogle(String idToken);
   Future<void> signOut();
 }
 
@@ -19,6 +20,10 @@ class ApiAuthRepository implements AuthRepository {
   @override
   Future<void> signIn({required String email, required String password}) =>
       _api.signIn(email: email, password: password);
+
+  @override
+  Future<void> signInWithGoogle(String idToken) =>
+      _api.signInWithGoogle(idToken: idToken);
 
   @override
   Future<void> signOut() => _api.signOut();

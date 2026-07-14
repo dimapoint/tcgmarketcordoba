@@ -27,6 +27,7 @@ var (
 
 type Store interface {
 	CreateUser(ctx context.Context, email, passwordHash string) (User, error)
+	CreateGoogleUser(ctx context.Context, email string) (User, error)
 	UserByEmail(ctx context.Context, email string) (User, error)
 	UserByID(ctx context.Context, id string) (User, error)
 	SaveRefreshToken(ctx context.Context, userID, tokenHash string, expiresAt time.Time) error
@@ -38,6 +39,16 @@ type PgStore struct{ pool *pgxpool.Pool }
 func NewPgStore(pool *pgxpool.Pool) *PgStore { return &PgStore{pool: pool} }
 
 func (s *PgStore) CreateUser(ctx context.Context, email, passwordHash string) (User, error) {
+	return s.createUser(ctx, email, &passwordHash)
+}
+
+// CreateGoogleUser crea una cuenta sin contraseña (password_hash NULL):
+// solo puede iniciar sesión vía Google.
+func (s *PgStore) CreateGoogleUser(ctx context.Context, email string) (User, error) {
+	return s.createUser(ctx, email, nil)
+}
+
+func (s *PgStore) createUser(ctx context.Context, email string, passwordHash *string) (User, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return User{}, err
@@ -47,7 +58,7 @@ func (s *PgStore) CreateUser(ctx context.Context, email, passwordHash string) (U
 	var u User
 	err = tx.QueryRow(ctx,
 		`INSERT INTO users (email, password_hash) VALUES ($1, $2)
-		 RETURNING id, email, password_hash, is_admin`,
+		 RETURNING id, email, COALESCE(password_hash, ''), is_admin`,
 		email, passwordHash,
 	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.IsAdmin)
 	if isUniqueViolation(err) {
@@ -77,7 +88,7 @@ func (s *PgStore) CreateUser(ctx context.Context, email, passwordHash string) (U
 func (s *PgStore) UserByEmail(ctx context.Context, email string) (User, error) {
 	var u User
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, email, password_hash, is_admin FROM users WHERE email = $1`, email,
+		`SELECT id, email, COALESCE(password_hash, ''), is_admin FROM users WHERE email = $1`, email,
 	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.IsAdmin)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
@@ -88,7 +99,7 @@ func (s *PgStore) UserByEmail(ctx context.Context, email string) (User, error) {
 func (s *PgStore) UserByID(ctx context.Context, id string) (User, error) {
 	var u User
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, email, password_hash, is_admin FROM users WHERE id = $1`, id,
+		`SELECT id, email, COALESCE(password_hash, ''), is_admin FROM users WHERE id = $1`, id,
 	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.IsAdmin)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound

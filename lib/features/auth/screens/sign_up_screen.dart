@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../auth_provider.dart';
+import '../google/google_sign_in_section.dart';
 import '../widgets/auth_shell.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
@@ -81,6 +82,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     )
                   : const Text('Registrarse'),
             ),
+            const GoogleSignInSection(),
             TextButton(
               onPressed: () {
                 final from =
