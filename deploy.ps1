@@ -16,6 +16,9 @@ $buildEnv = @("API_URL=$AppUrl")
 $buildEnv += ($envBackup -split "\r?\n") -match '^GOOGLE_CLIENT_ID='
 Set-Content .env ($buildEnv -join "`n")
 try {
+    # flutter clean evita que .dart_tool/flutter_build quede con un
+    # web_plugin_registrant.dart viejo (plugins nuevos no registrados en el build).
+    flutter clean
     flutter build web --release
     if ($LASTEXITCODE -ne 0) { throw "flutter build web falló" }
 } finally {
