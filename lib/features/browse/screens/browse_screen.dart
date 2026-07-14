@@ -52,12 +52,28 @@ class BrowseScreen extends ConsumerWidget {
                       segments: const [
                         ButtonSegment(
                           value: MarketSide.selling,
-                          label: Text('En venta'),
+                          label: SizedBox(
+                            width: 80,
+                            child: Text(
+                              'En venta',
+                              textAlign: TextAlign.center,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                           icon: Icon(Icons.style_outlined),
                         ),
                         ButtonSegment(
                           value: MarketSide.wanted,
-                          label: Text('Se busca'),
+                          label: SizedBox(
+                            width: 80,
+                            child: Text(
+                              'Se busca',
+                              textAlign: TextAlign.center,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                           icon: Icon(Icons.travel_explore_outlined),
                         ),
                       ],
