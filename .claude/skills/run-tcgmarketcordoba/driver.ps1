@@ -183,7 +183,7 @@ function Invoke-Smoke {
   Write-Host "4. listing creado ($($created.id))"
 
   $active = Invoke-RestMethod "$ApiUrl/listings"
-  if (-not ($active | Where-Object { $_.id -eq $created.id })) { throw 'el listing creado no aparece en GET /listings' }
+  if (-not ($active.data | Where-Object { $_.id -eq $created.id })) { throw 'el listing creado no aparece en GET /listings' }
   Write-Host '5. listing visible en el browse público'
 
   # OG previews: el HTML de un deep link del SPA debe traer og:title con la

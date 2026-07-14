@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tcgmarketcordoba/core/api/paginated.dart';
 import 'package:tcgmarketcordoba/features/browse/listing_provider.dart';
 import 'package:tcgmarketcordoba/features/browse/listing_repository.dart';
 import 'package:tcgmarketcordoba/features/browse/screens/browse_screen.dart';
@@ -12,6 +13,10 @@ import 'package:tcgmarketcordoba/shared/models/wanted_order.dart';
 class _FakeListingRepository implements ListingRepository {
   @override
   Future<List<Listing>> fetchActive({String? query}) async => [];
+
+  @override
+  Future<PaginatedList<Listing>> fetchActivePage({String? query, String? cursor, int limit = 20}) async =>
+      PaginatedList(data: await fetchActive(query: query), nextCursor: null);
 
   @override
   Future<Listing> fetchById(String id) => throw UnimplementedError();
@@ -42,6 +47,10 @@ class _FakeWantedRepository implements WantedRepository {
         .where((o) => o.cardName.toLowerCase().contains(query.toLowerCase()))
         .toList();
   }
+
+  @override
+  Future<PaginatedList<WantedOrder>> fetchActivePage({String? query, String? cursor, int limit = 20}) async =>
+      PaginatedList(data: await fetchActive(query: query), nextCursor: null);
 
   @override
   Future<WantedOrder> fetchById(String id) async => orders.first;

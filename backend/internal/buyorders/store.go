@@ -3,6 +3,8 @@ package buyorders
 import (
 	"context"
 	"errors"
+	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -12,7 +14,7 @@ import (
 )
 
 type Store interface {
-	Active(ctx context.Context, query string) ([]BuyOrder, error)
+	Active(ctx context.Context, query string, cursorTime *time.Time, cursorID string, limit int) ([]BuyOrder, error)
 	ByID(ctx context.Context, id string) (BuyOrder, error)
 	Mine(ctx context.Context, buyerID, status string) ([]BuyOrder, error)
 	Create(ctx context.Context, p CreateParams) (BuyOrder, error)
@@ -65,10 +67,19 @@ func scanBuyOrder(row pgx.Row) (BuyOrder, error) {
 	return o, nil
 }
 
-func (s *PgStore) Active(ctx context.Context, query string) ([]BuyOrder, error) {
-	rows, err := s.pool.Query(ctx, selectBuyOrder+`
-		WHERE bo.status = 'active' AND ($1 = '' OR c.name ILIKE '%'||$1||'%')
-		ORDER BY bo.created_at DESC`, query)
+func (s *PgStore) Active(ctx context.Context, query string, cursorTime *time.Time, cursorID string, limit int) ([]BuyOrder, error) {
+	where := `bo.status = 'active' AND ($1 = '' OR c.name ILIKE '%'||$1||'%')`
+	args := []any{query}
+
+	if cursorTime != nil {
+		where += ` AND (bo.created_at, bo.id) < ($2, $3)`
+		args = append(args, *cursorTime, cursorID)
+	}
+
+	q := selectBuyOrder + ` WHERE ` + where + ` ORDER BY bo.created_at DESC, bo.id DESC LIMIT $` + strconv.Itoa(len(args)+1)
+	args = append(args, limit)
+
+	rows, err := s.pool.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}

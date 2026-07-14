@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
-
 	"tcgmarketcordoba/internal/auth"
+	"tcgmarketcordoba/internal/httpx"
 )
 
 type fakeStore struct {
@@ -19,7 +19,7 @@ type fakeStore struct {
 	createErr   error
 }
 
-func (f *fakeStore) Active(_ context.Context, query string) ([]BuyOrder, error) {
+func (f *fakeStore) Active(_ context.Context, query string, _ *time.Time, _ string, _ int) ([]BuyOrder, error) {
 	out := []BuyOrder{}
 	for _, o := range f.items {
 		if o.Status == "active" {
@@ -97,11 +97,14 @@ func TestListReturnsActiveBuyOrders(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("code = %d", rec.Code)
 	}
-	var out []BuyOrder
+	var out httpx.PageResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
 		t.Fatal(err)
 	}
-	if len(out) != 1 || out[0].CardName != "Jinx" {
+	data, _ := json.Marshal(out.Data)
+	var bo []BuyOrder
+	json.Unmarshal(data, &bo)
+	if len(bo) != 1 || bo[0].CardName != "Jinx" {
 		t.Fatalf("unexpected body: %s", rec.Body)
 	}
 }

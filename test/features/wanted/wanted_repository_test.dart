@@ -29,7 +29,7 @@ Future<ApiWantedRepository> _repo(String? cardImageUrl) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
   final mock = MockClient((req) async => http.Response(
-        jsonEncode([_order(cardImageUrl: cardImageUrl)]),
+        jsonEncode({'data': [_order(cardImageUrl: cardImageUrl)], 'next_cursor': null}),
         200,
         headers: {'content-type': 'application/json'},
       ));
