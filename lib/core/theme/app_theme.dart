@@ -182,6 +182,13 @@ abstract final class AppTheme {
             colorScheme.brightness == Brightness.dark
                 ? AppColors.surfaceNightHigh
                 : const Color(0xFF22303C),
+        contentTextStyle: const TextStyle(
+          color: Color(0xFFF4F6F8), // blanco suave, alto contraste sobre fondo oscuro
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        width: 360,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
     );
   }

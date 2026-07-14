@@ -36,14 +36,14 @@ class _PhotoCarouselState extends State<PhotoCarousel> {
 
     return Column(
       children: [
-        AspectRatio(
-          aspectRatio: 1,
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 420),
           child: PageView.builder(
             itemCount: widget.photos.length,
             onPageChanged: (i) => setState(() => _current = i),
             itemBuilder: (_, i) => CachedNetworkImage(
               imageUrl: widget.photos[i].url,
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
               placeholder: (_, _) =>
                   ColoredBox(color: scheme.surfaceContainerHighest),
               errorWidget: (_, _, _) => ColoredBox(

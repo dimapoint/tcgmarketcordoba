@@ -27,6 +27,11 @@ class SellerScreen extends ConsumerWidget {
         title: Text(username),
         actions: [
           IconButton(
+            icon: const Icon(Icons.home_outlined),
+            tooltip: 'Ir al inicio',
+            onPressed: () => context.go('/'),
+          ),
+          IconButton(
             icon: const Icon(Icons.share_outlined),
             tooltip: 'Compartir carpeta',
             onPressed: () {

@@ -48,6 +48,9 @@ app.*.map.json
 .env
 backend/.env
 
+# Google OAuth client secret JSON — contains credentials, never commit
+client_secret*.json
+
 # Go build artifacts
 backend/*.exe
 
