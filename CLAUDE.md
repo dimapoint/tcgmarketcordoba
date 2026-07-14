@@ -42,14 +42,21 @@ go build ./...           # compile check
 
 Docker: `docker compose up --build` (uses `backend/.env`).
 
+### Deploy (prod)
+
+```powershell
+./deploy.ps1             # build Flutter web con .env temporal (API_URL=prod + GOOGLE_CLIENT_ID) y flyctl deploy a Fly.io
+```
+
 ## Architecture
 
 ### Go Backend (`backend/`)
 
 - Module `tcgmarketcordoba`, stdlib `net/http` mux (Go 1.22+ patterns like `GET /listings/{id}`), no framework. `go.mod` pins Go 1.26.5.
-- Feature packages under `internal/`: `auth`, `listings`, `cards`, `profiles`, `photos`. Each has a `Store` interface (pgx implementation) and handlers unit-tested against fake stores.
+- Feature packages under `internal/`: `auth`, `listings`, `buyorders`, `cards`, `matches`, `profiles`, `photos`, `prices`, `sellers`, `admin`, `riftbound` (card sync), `ogmeta` (OG previews), `webapp`. Each has a `Store` interface (pgx implementation) and handlers unit-tested against fake stores.
 - `internal/config` loads env (+ local `backend/.env`); `internal/db` wires the pgx pool (`DATABASE_URL`); `internal/httpx` has JSON/error/CORS helpers.
-- Auth: HS256 access token (15 min, subject = user id) + rotating refresh tokens (SHA-256-hashed in `refresh_tokens`, 30 days). Passwords bcrypt. Signup creates the `profiles` row (username = email local part).
+- Auth: HS256 access token (15 min, subject = user id) + rotating refresh tokens (SHA-256-hashed in `refresh_tokens`, 30 days). Passwords bcrypt (`users.password_hash` nullable for OAuth-only users). Signup creates the `profiles` row (username = email local part). Google OAuth: `POST /auth/google` verifica el ID token; responde 503 si `GOOGLE_CLIENT_ID` no está seteado (y el botón no aparece en la app).
+- List endpoints (`/listings`, `/buy-orders`) return a keyset-cursor envelope `{"data": [...], "next_cursor": "..."}` — helpers in `internal/httpx/cursor.go`; Flutter side in `lib/core/api/paginated.dart`.
 - Photos: multipart upload proxied to Supabase Storage REST with the service role key (`internal/photos/storage.go`); swap to S3/R2 = replace that one struct.
 - API errors are `{"error": "<mensaje>"}` with user-facing messages **in Spanish**.
 
@@ -67,8 +74,8 @@ Docker: `docker compose up --build` (uses `backend/.env`).
 
 ## Environment files
 
-- Root `.env` — **bundled as a Flutter asset, public values only** (just `API_URL`). Never put secrets here.
-- `backend/.env` — gitignored, holds `DATABASE_URL`, `JWT_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Template: `backend/.env.example`.
+- Root `.env` — **bundled as a Flutter asset, public values only** (`API_URL`, `GOOGLE_CLIENT_ID`). Never put secrets here. `deploy.ps1` lo reescribe temporalmente para el build (conserva `GOOGLE_CLIENT_ID`, cambia `API_URL`).
+- `backend/.env` — gitignored, holds `DATABASE_URL`, `JWT_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GOOGLE_CLIENT_ID`. Template: `backend/.env.example`. En Fly, los mismos valores van como secrets (`flyctl secrets set`).
 
 ## Conventions
 
