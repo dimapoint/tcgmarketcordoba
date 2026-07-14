@@ -21,6 +21,14 @@ try {
     flutter clean
     flutter build web --release
     if ($LASTEXITCODE -ne 0) { throw "flutter build web falló" }
+
+    # Guard: si el .env quedó mal (p.ej. porque quedó sobreescrito con un valor
+    # de prod antes de correr este script), el bundle apuntaría a la URL vieja
+    # y quedaría serviendo ese API_URL a todos los visitantes silenciosamente.
+    $bundleEnv = Get-Content build/web/assets/.env -Raw
+    if ($bundleEnv -notmatch [regex]::Escape("API_URL=$AppUrl")) {
+        throw "build/web/assets/.env no tiene API_URL=$AppUrl - abortando deploy (bundle: $bundleEnv)"
+    }
 } finally {
     Set-Content .env $envBackup -NoNewline
 }
