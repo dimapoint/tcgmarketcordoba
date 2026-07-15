@@ -18,6 +18,7 @@ type Photo struct {
 type Listing struct {
 	ID             string    `json:"id"`
 	SellerID       string    `json:"seller_id"`
+	CardPrintingID string    `json:"card_printing_id"`
 	CardName       string    `json:"card_name"`
 	SetName        string    `json:"set_name"`
 	IsFoil         bool      `json:"is_foil"`

@@ -45,7 +45,7 @@ SELECT l.id, l.seller_id, c.name, s.name, cp.is_foil, l.condition::text,
                          ORDER BY lp.display_order)
          FROM listing_photos lp WHERE lp.listing_id = l.id
        ), '[]'::json),
-       l.created_at, cp.image_url
+       l.created_at, cp.image_url, l.card_printing_id
 FROM listings l
 JOIN card_printings cp ON cp.id = l.card_printing_id
 JOIN cards c ON c.id = cp.card_id
@@ -60,7 +60,8 @@ func scanListing(row pgx.Row) (Listing, error) {
 	var rawImg *string
 	err := row.Scan(&l.ID, &l.SellerID, &l.CardName, &l.SetName, &l.IsFoil,
 		&l.Condition, &l.Price, &l.Quantity, &l.Description, &l.Status,
-		&l.SellerUsername, &l.SellerCity, &photosJSON, &l.CreatedAt, &rawImg)
+		&l.SellerUsername, &l.SellerCity, &photosJSON, &l.CreatedAt, &rawImg,
+		&l.CardPrintingID)
 	if err != nil {
 		return Listing{}, err
 	}

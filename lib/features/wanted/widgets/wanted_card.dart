@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../shared/format/relative_time.dart';
 import '../../../shared/models/wanted_order.dart';
 import '../../../shared/widgets/condition_badge.dart';
 import '../../../shared/widgets/price_text.dart';
@@ -100,6 +101,14 @@ class WantedCard extends StatelessWidget {
                           .textTheme
                           .bodySmall
                           ?.copyWith(color: scheme.onSurfaceVariant)),
+                  const SizedBox(width: 8),
+                  Text(
+                    relativeTime(order.createdAt),
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelSmall
+                        ?.copyWith(color: scheme.outline),
+                  ),
                 ],
               ),
             ],
@@ -118,7 +127,7 @@ class _AnyConditionChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         'Cualquier condición',

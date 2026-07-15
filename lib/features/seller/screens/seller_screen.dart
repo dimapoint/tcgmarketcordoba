@@ -62,6 +62,17 @@ class SellerScreen extends ConsumerWidget {
   }
 }
 
+String _summaryLine(SellerPage page) {
+  final parts = <String>[];
+  if (page.listings.isNotEmpty) {
+    parts.add('${page.listings.length} en venta');
+  }
+  if (page.buyOrders.isNotEmpty) {
+    parts.add('${page.buyOrders.length} se buscan');
+  }
+  return parts.join(' · ');
+}
+
 class _Body extends StatelessWidget {
   final SellerPage page;
   const _Body({required this.page});
@@ -118,6 +129,15 @@ class _Body extends StatelessWidget {
                                     ?.copyWith(color: scheme.onSurfaceVariant),
                               ),
                             ],
+                          ),
+                        if (page.listings.isNotEmpty ||
+                            page.buyOrders.isNotEmpty)
+                          Text(
+                            _summaryLine(page),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
                           ),
                       ],
                     ),

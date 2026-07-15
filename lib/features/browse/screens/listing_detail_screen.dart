@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../features/auth/auth_provider.dart';
+import '../../../shared/format/relative_time.dart';
 import '../../../shared/models/listing.dart';
 import '../../../shared/share/share.dart';
 import '../../../shared/widgets/condition_badge.dart';
@@ -12,6 +13,7 @@ import '../../../shared/widgets/error_state.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../../../shared/widgets/max_width.dart';
 import '../../../shared/widgets/photo_carousel.dart';
+import '../../../shared/widgets/price_reference_hint.dart';
 import '../../../shared/widgets/price_text.dart';
 import '../listing_provider.dart';
 
@@ -144,6 +146,16 @@ class _Info extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         PriceText(price: listing.price, fontSize: 32),
+        if (listing.cardPrintingId.isNotEmpty)
+          PriceReferenceHint(printingId: listing.cardPrintingId),
+        const SizedBox(height: 4),
+        Text(
+          'Publicado ${relativeTime(listing.createdAt)}',
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: scheme.onSurfaceVariant),
+        ),
         if (listing.description != null &&
             listing.description!.trim().isNotEmpty) ...[
           const SizedBox(height: 16),

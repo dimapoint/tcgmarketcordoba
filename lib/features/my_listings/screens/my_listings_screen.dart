@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../features/profile/profile_provider.dart';
 import '../../../shared/models/listing.dart';
 import '../../../shared/share/share.dart';
+import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/condition_badge.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/error_state.dart';
 import '../../../shared/widgets/skeleton.dart';
@@ -196,14 +198,32 @@ class _ListingTile extends ConsumerWidget {
               ),
               if (listing.status == 'active')
                 PopupMenuButton<String>(
-                  onSelected: (action) => switch (action) {
-                    'sold' => ref
-                        .read(myListingsActionsProvider.notifier)
-                        .markSold(listing.id),
-                    'remove' => ref
-                        .read(myListingsActionsProvider.notifier)
-                        .remove(listing.id),
-                    _ => null,
+                  onSelected: (action) async {
+                    switch (action) {
+                      case 'sold':
+                        await ref
+                            .read(myListingsActionsProvider.notifier)
+                            .markSold(listing.id);
+                        if (context.mounted) {
+                          showAppSnackBar(context, 'Marcada como vendida',
+                              type: AppSnackBarType.success);
+                        }
+                      case 'remove':
+                        final confirmed = await confirmDestructive(
+                          context,
+                          title: 'Eliminar publicación',
+                          message:
+                              '¿Eliminar esta publicación? No se puede deshacer.',
+                        );
+                        if (!confirmed) return;
+                        await ref
+                            .read(myListingsActionsProvider.notifier)
+                            .remove(listing.id);
+                        if (context.mounted) {
+                          showAppSnackBar(context, 'Publicación eliminada',
+                              type: AppSnackBarType.success);
+                        }
+                    }
                   },
                   itemBuilder: (_) => const [
                     PopupMenuItem(
@@ -219,7 +239,7 @@ class _ListingTile extends ConsumerWidget {
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       'Vendida',

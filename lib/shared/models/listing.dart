@@ -14,6 +14,7 @@ class ListingPhoto {
 class Listing {
   final String id;
   final String sellerId;
+  final String cardPrintingId;
   final String cardName;
   final String setName;
   final bool isFoil;
@@ -34,6 +35,7 @@ class Listing {
   const Listing({
     required this.id,
     required this.sellerId,
+    required this.cardPrintingId,
     required this.cardName,
     required this.setName,
     required this.isFoil,
@@ -52,6 +54,7 @@ class Listing {
   factory Listing.fromJson(Map<String, dynamic> j) => Listing(
         id: j['id'] as String,
         sellerId: j['seller_id'] as String,
+        cardPrintingId: j['card_printing_id'] as String? ?? '',
         cardName: j['card_name'] as String,
         setName: j['set_name'] as String,
         isFoil: j['is_foil'] as bool,

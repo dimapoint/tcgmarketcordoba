@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../shared/format/relative_time.dart';
 import '../../../shared/models/listing.dart';
 import '../../../shared/widgets/condition_badge.dart';
 import '../../../shared/widgets/foil_shimmer.dart';
@@ -133,6 +134,13 @@ class _CardBody extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+                    Text(
+                      relativeTime(listing.createdAt),
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelSmall
+                          ?.copyWith(color: scheme.outline),
                     ),
                   ],
                 ),

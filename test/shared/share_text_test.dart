@@ -6,6 +6,7 @@ import 'package:tcgmarketcordoba/shared/share/share.dart';
 Listing listing({bool foil = false}) => Listing(
       id: 'l1',
       sellerId: 'u1',
+      cardPrintingId: 'cp1',
       cardName: 'Jinx',
       setName: 'Origins',
       isFoil: foil,

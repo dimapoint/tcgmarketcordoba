@@ -11,6 +11,7 @@ import 'package:tcgmarketcordoba/shared/models/wanted_order.dart';
 Listing _listing() => Listing(
       id: 'l-1',
       sellerId: 'u-1',
+      cardPrintingId: 'cp-1',
       cardName: 'Jinx',
       setName: 'Origins',
       isFoil: false,

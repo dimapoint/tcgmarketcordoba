@@ -10,12 +10,16 @@ import 'price_text.dart';
 /// (o con la API caída) no renderiza nada: el form queda como hoy.
 class PriceReferenceHint extends ConsumerWidget {
   final String printingId;
-  final ValueChanged<double> onSuggest;
+
+  /// Cuando se pasa, la línea de mercado es tappable y autocompleta el
+  /// campo de precio (formularios de Vender/Busco). Sin callback queda
+  /// como texto de referencia para el comprador (detalle de publicación).
+  final ValueChanged<double>? onSuggest;
 
   const PriceReferenceHint({
     super.key,
     required this.printingId,
-    required this.onSuggest,
+    this.onSuggest,
   });
 
   @override
@@ -38,17 +42,17 @@ class PriceReferenceHint extends ConsumerWidget {
             Text(_localLine(reference), style: style),
           if (reference.marketUsd != null)
             InkWell(
-              onTap: reference.marketArs == null
+              onTap: onSuggest == null || reference.marketArs == null
                   ? null
-                  : () => onSuggest(reference.marketArs!),
+                  : () => onSuggest!(reference.marketArs!),
               child: Text(
                 _marketLine(reference),
-                style: reference.marketArs == null
-                    ? style
-                    : style?.copyWith(
+                style: onSuggest != null && reference.marketArs != null
+                    ? style?.copyWith(
                         color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.w600,
-                      ),
+                      )
+                    : style,
               ),
             ),
         ],
@@ -67,7 +71,7 @@ class PriceReferenceHint extends ConsumerWidget {
   String _marketLine(PriceReference ref) {
     final usd = 'US\$ ${ref.marketUsd!.toStringAsFixed(2)}';
     if (ref.marketArs == null) return 'Mercado TCGplayer: $usd';
-    return 'Mercado TCGplayer: $usd '
-        '(~${PriceText.format(ref.marketArs!)}) — tocá para usar';
+    final suffix = onSuggest != null ? ' — tocá para usar' : '';
+    return 'Mercado TCGplayer: $usd (~${PriceText.format(ref.marketArs!)})$suffix';
   }
 }

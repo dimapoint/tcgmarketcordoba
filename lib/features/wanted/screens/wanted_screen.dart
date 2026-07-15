@@ -9,7 +9,9 @@ import '../../../features/matches/matches_repository.dart';
 import '../../../features/my_wanted/my_wanted_provider.dart';
 import '../../../shared/models/match_item.dart';
 import '../../../shared/models/wanted_order.dart';
+import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/condition_badge.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/error_state.dart';
 import '../../../shared/widgets/skeleton.dart';
@@ -340,13 +342,32 @@ class _MyWantedTile extends ConsumerWidget {
                 ),
               ),
               PopupMenuButton<String>(
-                onSelected: (action) => switch (action) {
-                  'fulfilled' => ref
-                      .read(myWantedActionsProvider.notifier)
-                      .markFulfilled(order.id),
-                  'remove' =>
-                    ref.read(myWantedActionsProvider.notifier).remove(order.id),
-                  _ => null,
+                onSelected: (action) async {
+                  switch (action) {
+                    case 'fulfilled':
+                      await ref
+                          .read(myWantedActionsProvider.notifier)
+                          .markFulfilled(order.id);
+                      if (context.mounted) {
+                        showAppSnackBar(context, 'Marcada como conseguida',
+                            type: AppSnackBarType.success);
+                      }
+                    case 'remove':
+                      final confirmed = await confirmDestructive(
+                        context,
+                        title: 'Eliminar búsqueda',
+                        message:
+                            '¿Eliminar esta búsqueda? No se puede deshacer.',
+                      );
+                      if (!confirmed) return;
+                      await ref
+                          .read(myWantedActionsProvider.notifier)
+                          .remove(order.id);
+                      if (context.mounted) {
+                        showAppSnackBar(context, 'Búsqueda eliminada',
+                            type: AppSnackBarType.success);
+                      }
+                  }
                 },
                 itemBuilder: (_) => const [
                   PopupMenuItem(
