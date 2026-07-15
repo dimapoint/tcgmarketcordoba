@@ -27,6 +27,7 @@ type CreateParams struct {
 	CardPrintingID string
 	Condition      string
 	Price          float64
+	Quantity       int
 	Description    *string
 	CityID         *string
 }
@@ -37,7 +38,7 @@ func NewPgStore(pool *pgxpool.Pool) *PgStore { return &PgStore{pool: pool} }
 
 const selectListing = `
 SELECT l.id, l.seller_id, c.name, s.name, cp.is_foil, l.condition::text,
-       l.price::float8, l.description, l.status::text, p.username, ci.name,
+       l.price::float8, l.quantity, l.description, l.status::text, p.username, ci.name,
        COALESCE((
          SELECT json_agg(json_build_object('url', lp.storage_path,
                                            'display_order', lp.display_order)
@@ -58,7 +59,7 @@ func scanListing(row pgx.Row) (Listing, error) {
 	var photosJSON []byte
 	var rawImg *string
 	err := row.Scan(&l.ID, &l.SellerID, &l.CardName, &l.SetName, &l.IsFoil,
-		&l.Condition, &l.Price, &l.Description, &l.Status,
+		&l.Condition, &l.Price, &l.Quantity, &l.Description, &l.Status,
 		&l.SellerUsername, &l.SellerCity, &photosJSON, &l.CreatedAt, &rawImg)
 	if err != nil {
 		return Listing{}, err
@@ -228,10 +229,10 @@ func (s *PgStore) Create(ctx context.Context, p CreateParams) (Listing, error) {
 
 	var id string
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO listings (seller_id, card_printing_id, condition, price, description, city_id)
-		VALUES ($1, $2, $3::card_condition, $4, $5, $6)
+		INSERT INTO listings (seller_id, card_printing_id, condition, price, quantity, description, city_id)
+		VALUES ($1, $2, $3::card_condition, $4, $5, $6, $7)
 		RETURNING id`,
-		p.SellerID, p.CardPrintingID, p.Condition, p.Price, p.Description, *cityID,
+		p.SellerID, p.CardPrintingID, p.Condition, p.Price, p.Quantity, p.Description, *cityID,
 	).Scan(&id)
 	if err != nil {
 		return Listing{}, err

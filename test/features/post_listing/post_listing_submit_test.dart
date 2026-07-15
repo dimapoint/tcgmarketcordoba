@@ -16,6 +16,7 @@ class _FakeListingRepo implements PostListingRepository {
     required String cardPrintingId,
     required String condition,
     required double price,
+    required int quantity,
     String? description,
     String? cityId,
   }) async {

@@ -183,11 +183,14 @@ class _MatchTile extends StatelessWidget {
               if (thumb != null) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),
-                  child: CachedNetworkImage(
-                    imageUrl: thumb,
-                    width: 40,
-                    height: 56,
-                    fit: BoxFit.cover,
+                  child: ColoredBox(
+                    color: scheme.surfaceContainerHighest,
+                    child: CachedNetworkImage(
+                      imageUrl: thumb,
+                      width: 40,
+                      height: 56,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -263,11 +266,14 @@ class _MyWantedTile extends ConsumerWidget {
               if (thumb != null) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),
-                  child: CachedNetworkImage(
-                    imageUrl: thumb,
-                    width: 40,
-                    height: 56,
-                    fit: BoxFit.cover,
+                  child: ColoredBox(
+                    color: scheme.surfaceContainerHighest,
+                    child: CachedNetworkImage(
+                      imageUrl: thumb,
+                      width: 40,
+                      height: 56,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),

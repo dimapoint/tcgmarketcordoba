@@ -50,6 +50,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		CardPrintingID string  `json:"card_printing_id"`
 		Condition      string  `json:"condition"`
 		Price          float64 `json:"price"`
+		Quantity       int     `json:"quantity"`
 		Description    *string `json:"description"`
 		CityID         *string `json:"city_id"`
 	}
@@ -61,11 +62,15 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, http.StatusUnprocessableEntity, "datos de publicación inválidos")
 		return
 	}
+	if b.Quantity <= 0 {
+		b.Quantity = 1
+	}
 	l, err := h.Store.Create(r.Context(), CreateParams{
 		SellerID:       auth.UserID(r.Context()),
 		CardPrintingID: b.CardPrintingID,
 		Condition:      b.Condition,
 		Price:          b.Price,
+		Quantity:       b.Quantity,
 		Description:    b.Description,
 		CityID:         b.CityID,
 	})

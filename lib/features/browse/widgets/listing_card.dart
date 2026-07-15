@@ -55,14 +55,17 @@ class _CardBody extends StatelessWidget {
         children: [
           Expanded(
             child: imageUrl != null
-                ? CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    placeholder: (_, _) => ColoredBox(
-                      color: scheme.surfaceContainerHighest,
+                ? ColoredBox(
+                    color: scheme.surfaceContainerHighest,
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.contain,
+                      width: double.infinity,
+                      placeholder: (_, _) => ColoredBox(
+                        color: scheme.surfaceContainerHighest,
+                      ),
+                      errorWidget: (_, _, _) => _Placeholder(scheme: scheme),
                     ),
-                    errorWidget: (_, _, _) => _Placeholder(scheme: scheme),
                   )
                 : _Placeholder(scheme: scheme),
           ),
@@ -100,6 +103,17 @@ class _CardBody extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
+                    if (listing.quantity > 1) ...[
+                      Icon(Icons.format_list_numbered,
+                          size: 13, color: scheme.onSurfaceVariant),
+                      const SizedBox(width: 2),
+                      Text('${listing.quantity}x',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: scheme.onSurfaceVariant)),
+                      const SizedBox(width: 8),
+                    ],
                     Icon(Icons.place_outlined,
                         size: 13, color: scheme.onSurfaceVariant),
                     const SizedBox(width: 2),

@@ -44,7 +44,9 @@ class _PostWantedScreenState extends ConsumerState<PostWantedScreen> {
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
+            // El paso de búsqueda aprovecha pantallas anchas (más resultados
+            // visibles); los pasos de formulario quedan en columna angosta.
+            constraints: BoxConstraints(maxWidth: _step == 0 ? 900 : 560),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -270,15 +272,18 @@ class _CardResultTile extends StatelessWidget {
                   width: 40,
                   height: 56,
                   child: printing.thumbnailUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: printing.thumbnailUrl!,
-                          fit: BoxFit.cover,
-                          placeholder: (_, _) => ColoredBox(
-                              color: scheme.surfaceContainerHighest),
-                          errorWidget: (_, _, _) => ColoredBox(
-                            color: scheme.surfaceContainerHighest,
-                            child: Icon(Icons.style_outlined,
-                                size: 18, color: scheme.outline),
+                      ? ColoredBox(
+                          color: scheme.surfaceContainerHighest,
+                          child: CachedNetworkImage(
+                            imageUrl: printing.thumbnailUrl!,
+                            fit: BoxFit.contain,
+                            placeholder: (_, _) => ColoredBox(
+                                color: scheme.surfaceContainerHighest),
+                            errorWidget: (_, _, _) => ColoredBox(
+                              color: scheme.surfaceContainerHighest,
+                              child: Icon(Icons.style_outlined,
+                                  size: 18, color: scheme.outline),
+                            ),
                           ),
                         )
                       : ColoredBox(

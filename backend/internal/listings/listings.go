@@ -23,6 +23,7 @@ type Listing struct {
 	IsFoil         bool      `json:"is_foil"`
 	Condition      string    `json:"condition"`
 	Price          float64   `json:"price"`
+	Quantity       int       `json:"quantity"`
 	Description    *string   `json:"description"`
 	Status         string    `json:"status"`
 	SellerUsername string    `json:"seller_username"`

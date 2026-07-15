@@ -158,6 +158,7 @@ class _ListingTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final firstPhoto =
         listing.photos.isNotEmpty ? listing.photos.first.url : null;
     final thumb = firstPhoto ?? listing.cardImageThumb(120);
@@ -170,11 +171,14 @@ class _ListingTile extends StatelessWidget {
             ? const Icon(Icons.style_outlined)
             : ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: CachedNetworkImage(
-                  imageUrl: thumb,
-                  width: 40,
-                  height: 40,
-                  fit: BoxFit.cover,
+                child: ColoredBox(
+                  color: scheme.surfaceContainerHighest,
+                  child: CachedNetworkImage(
+                    imageUrl: thumb,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
         title: Text(listing.cardName),
@@ -200,6 +204,7 @@ class _WantedTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final thumb = order.cardImageThumb(120);
 
     return Card(
@@ -210,11 +215,14 @@ class _WantedTile extends StatelessWidget {
             ? const Icon(Icons.search_outlined)
             : ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: CachedNetworkImage(
-                  imageUrl: thumb,
-                  width: 40,
-                  height: 40,
-                  fit: BoxFit.cover,
+                child: ColoredBox(
+                  color: scheme.surfaceContainerHighest,
+                  child: CachedNetworkImage(
+                    imageUrl: thumb,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
         title: Text(order.cardName),

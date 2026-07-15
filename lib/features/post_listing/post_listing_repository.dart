@@ -8,6 +8,7 @@ abstract class PostListingRepository {
     required String cardPrintingId,
     required String condition,
     required double price,
+    required int quantity,
     String? description,
     String? cityId,
   });
@@ -22,6 +23,7 @@ class ApiPostListingRepository implements PostListingRepository {
     required String cardPrintingId,
     required String condition,
     required double price,
+    required int quantity,
     String? description,
     String? cityId,
   }) async {
@@ -29,6 +31,7 @@ class ApiPostListingRepository implements PostListingRepository {
       'card_printing_id': cardPrintingId,
       'condition': condition,
       'price': price,
+      'quantity': quantity,
       'description': ?description,
       'city_id': ?cityId,
     });

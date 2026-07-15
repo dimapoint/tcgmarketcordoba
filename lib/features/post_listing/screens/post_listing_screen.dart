@@ -26,7 +26,9 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
+            // El paso de búsqueda aprovecha pantallas anchas (más resultados
+            // visibles); los pasos de formulario quedan en columna angosta.
+            constraints: BoxConstraints(maxWidth: _step == 0 ? 900 : 560),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -228,15 +230,18 @@ class _CardResultTile extends StatelessWidget {
                   width: 40,
                   height: 56,
                   child: printing.thumbnailUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: printing.thumbnailUrl!,
-                          fit: BoxFit.cover,
-                          placeholder: (_, _) => ColoredBox(
-                              color: scheme.surfaceContainerHighest),
-                          errorWidget: (_, _, _) => ColoredBox(
-                            color: scheme.surfaceContainerHighest,
-                            child: Icon(Icons.style_outlined,
-                                size: 18, color: scheme.outline),
+                      ? ColoredBox(
+                          color: scheme.surfaceContainerHighest,
+                          child: CachedNetworkImage(
+                            imageUrl: printing.thumbnailUrl!,
+                            fit: BoxFit.contain,
+                            placeholder: (_, _) => ColoredBox(
+                                color: scheme.surfaceContainerHighest),
+                            errorWidget: (_, _, _) => ColoredBox(
+                              color: scheme.surfaceContainerHighest,
+                              child: Icon(Icons.style_outlined,
+                                  size: 18, color: scheme.outline),
+                            ),
                           ),
                         )
                       : ColoredBox(
@@ -310,6 +315,7 @@ class _ConditionPriceStep extends ConsumerStatefulWidget {
 
 class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
   final _priceCtrl = TextEditingController();
+  final _quantityCtrl = TextEditingController(text: '1');
   final _descCtrl = TextEditingController();
   String? _condition;
 
@@ -324,6 +330,7 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
   @override
   void dispose() {
     _priceCtrl.dispose();
+    _quantityCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
   }
@@ -375,6 +382,16 @@ class _ConditionPriceStepState extends ConsumerState<_ConditionPriceStep> {
                 ref.read(postListingFormProvider.notifier).setPrice(ars);
               },
             ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _quantityCtrl,
+            decoration: const InputDecoration(labelText: 'Cantidad'),
+            keyboardType: TextInputType.number,
+            onChanged: (v) {
+              final q = int.tryParse(v) ?? 1;
+              ref.read(postListingFormProvider.notifier).setQuantity(q > 0 ? q : 1);
+            },
+          ),
           const SizedBox(height: 16),
           TextField(
             controller: _descCtrl,
@@ -465,8 +482,11 @@ class _PhotoStep extends ConsumerWidget {
                           padding: const EdgeInsets.only(right: 10),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(10),
-                            child: Image.memory(e.value.bytes,
-                                width: 132, height: 132, fit: BoxFit.cover),
+                            child: ColoredBox(
+                              color: scheme.surfaceContainerHighest,
+                              child: Image.memory(e.value.bytes,
+                                  width: 132, height: 132, fit: BoxFit.contain),
+                            ),
                           ),
                         ),
                         Positioned(

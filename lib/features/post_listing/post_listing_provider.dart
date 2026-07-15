@@ -19,6 +19,7 @@ class PostListingForm {
   final CardPrinting? cardPrinting;
   final String? condition;
   final double price;
+  final int quantity;
   final String? description;
   final List<PickedPhoto> photos;
   final String? cityId;
@@ -27,6 +28,7 @@ class PostListingForm {
     this.cardPrinting,
     this.condition,
     this.price = 0,
+    this.quantity = 1,
     this.description,
     this.photos = const [],
     this.cityId,
@@ -41,6 +43,7 @@ class PostListingForm {
     CardPrinting? cardPrinting,
     String? condition,
     double? price,
+    int? quantity,
     String? description,
     List<PickedPhoto>? photos,
     String? cityId,
@@ -49,6 +52,7 @@ class PostListingForm {
         cardPrinting: cardPrinting ?? this.cardPrinting,
         condition: condition ?? this.condition,
         price: price ?? this.price,
+        quantity: quantity ?? this.quantity,
         description: description ?? this.description,
         photos: photos ?? this.photos,
         cityId: cityId ?? this.cityId,
@@ -63,6 +67,7 @@ class PostListingFormNotifier extends Notifier<PostListingForm> {
       state = state.copyWith(cardPrinting: cp);
   void setCondition(String c) => state = state.copyWith(condition: c);
   void setPrice(double p) => state = state.copyWith(price: p);
+  void setQuantity(int q) => state = state.copyWith(quantity: q);
   void setDescription(String? d) => state = state.copyWith(description: d);
   void setPhotos(List<PickedPhoto> photos) =>
       state = state.copyWith(photos: photos);
@@ -107,6 +112,7 @@ class PostListingSubmitNotifier extends Notifier<bool> {
                 cardPrintingId: form.cardPrinting!.id,
                 condition: form.condition!,
                 price: form.price,
+                quantity: form.quantity,
                 description: form.description,
                 cityId: form.cityId,
               );

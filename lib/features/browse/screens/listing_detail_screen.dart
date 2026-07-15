@@ -128,6 +128,11 @@ class _Info extends StatelessWidget {
                 color: AppColors.price(context),
               ),
             ConditionBadge(condition: listing.condition),
+            if (listing.quantity > 1)
+              _InfoChip(
+                label: '${listing.quantity} disponibles',
+                icon: Icons.format_list_numbered,
+              ),
           ],
         ),
         const SizedBox(height: 16),

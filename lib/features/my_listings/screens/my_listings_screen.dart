@@ -135,15 +135,18 @@ class _ListingTile extends ConsumerWidget {
                   width: 56,
                   height: 56,
                   child: thumb != null
-                      ? CachedNetworkImage(
-                          imageUrl: thumb,
-                          fit: BoxFit.cover,
-                          placeholder: (_, _) => ColoredBox(
-                              color: scheme.surfaceContainerHighest),
-                          errorWidget: (_, _, _) => ColoredBox(
-                            color: scheme.surfaceContainerHighest,
-                            child: Icon(Icons.style_outlined,
-                                size: 22, color: scheme.outline),
+                      ? ColoredBox(
+                          color: scheme.surfaceContainerHighest,
+                          child: CachedNetworkImage(
+                            imageUrl: thumb,
+                            fit: BoxFit.contain,
+                            placeholder: (_, _) => ColoredBox(
+                                color: scheme.surfaceContainerHighest),
+                            errorWidget: (_, _, _) => ColoredBox(
+                              color: scheme.surfaceContainerHighest,
+                              child: Icon(Icons.style_outlined,
+                                  size: 22, color: scheme.outline),
+                            ),
                           ),
                         )
                       : ColoredBox(

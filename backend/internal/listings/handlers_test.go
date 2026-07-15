@@ -139,6 +139,34 @@ func TestCreateListingHappyPath(t *testing.T) {
 	}
 }
 
+func TestCreateListingQuantityDefaultsToOne(t *testing.T) {
+	city := "city-1"
+	store := &fakeStore{items: map[string]Listing{}, profileCity: &city}
+	h := &Handler{Store: store}
+	rec := serveAuthed(h.Create, authedReq("POST", "/listings",
+		`{"card_printing_id":"cp1","condition":"NM","price":100}`))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("code = %d: %s", rec.Code, rec.Body)
+	}
+	if store.created == nil || store.created.Quantity != 1 {
+		t.Fatalf("quantity = %+v, want 1", store.created)
+	}
+}
+
+func TestCreateListingWithQuantity(t *testing.T) {
+	city := "city-1"
+	store := &fakeStore{items: map[string]Listing{}, profileCity: &city}
+	h := &Handler{Store: store}
+	rec := serveAuthed(h.Create, authedReq("POST", "/listings",
+		`{"card_printing_id":"cp1","condition":"NM","price":100,"quantity":4}`))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("code = %d: %s", rec.Code, rec.Body)
+	}
+	if store.created == nil || store.created.Quantity != 4 {
+		t.Fatalf("quantity = %+v, want 4", store.created)
+	}
+}
+
 func TestPatchStatusNotOwner404(t *testing.T) {
 	h := &Handler{Store: &fakeStore{items: map[string]Listing{
 		"l1": {ID: "l1", SellerID: "otro", Status: "active"},

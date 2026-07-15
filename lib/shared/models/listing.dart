@@ -19,6 +19,7 @@ class Listing {
   final bool isFoil;
   final String condition;
   final double price;
+  final int quantity;
   final String? description;
   final String status;
   final String sellerUsername;
@@ -38,6 +39,7 @@ class Listing {
     required this.isFoil,
     required this.condition,
     required this.price,
+    this.quantity = 1,
     this.description,
     required this.status,
     required this.sellerUsername,
@@ -55,6 +57,7 @@ class Listing {
         isFoil: j['is_foil'] as bool,
         condition: j['condition'] as String,
         price: (j['price'] as num).toDouble(),
+        quantity: j['quantity'] as int? ?? 1,
         description: j['description'] as String?,
         status: j['status'] as String,
         sellerUsername: j['seller_username'] as String,
