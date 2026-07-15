@@ -19,16 +19,30 @@ class _FakeAdminRepository implements AdminRepository {
   String? listingsNextCursor;
   String? buyOrdersNextCursor;
 
+  final feedbackStatusCalls = <(String, String)>[];
+  final feedbackDeleteCalls = <String>[];
+
   @override
-  Future<List<FeedbackItem>> fetchFeedback() async => [
+  Future<List<FeedbackItem>> fetchFeedback({String status = ''}) async => [
         FeedbackItem(
           id: 'f1',
           username: 'reporter',
           category: 'bug',
           message: 'algo se rompió',
+          status: 'nuevo',
           createdAt: DateTime.utc(2026, 7, 15),
         ),
       ];
+
+  @override
+  Future<void> setFeedbackStatus(String id, String status) async {
+    feedbackStatusCalls.add((id, status));
+  }
+
+  @override
+  Future<void> deleteFeedback(String id) async {
+    feedbackDeleteCalls.add(id);
+  }
 
   @override
   Future<AdminStats> fetchStats() async => const AdminStats(
@@ -265,6 +279,31 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Confirmar'));
     await tester.pumpAndSettle();
     expect(repo.userAdminCalls, [('u2', true)]);
+  });
+
+  testWidgets(
+      'tab Feedback: resolver llama al repo directo, borrar pide confirmación',
+      (tester) async {
+    final (container, widget, repo) = _harness();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Feedback').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('algo se rompió'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Marcar resuelto'));
+    await tester.pumpAndSettle();
+    expect(repo.feedbackStatusCalls, [('f1', 'resuelto')]);
+
+    await tester.tap(find.byTooltip('Eliminar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Eliminar mensaje'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Eliminar'));
+    await tester.pumpAndSettle();
+    expect(repo.feedbackDeleteCalls, ['f1']);
   });
 
   testWidgets('en pantalla angosta muestra TabBar en vez de NavigationRail',

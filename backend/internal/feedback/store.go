@@ -2,13 +2,17 @@ package feedback
 
 import (
 	"context"
+	"errors"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Store interface {
 	Create(ctx context.Context, userID, category, message string) error
-	List(ctx context.Context) ([]Feedback, error)
+	List(ctx context.Context, status string) ([]Feedback, error)
+	UpdateStatus(ctx context.Context, id, status string) error
+	Delete(ctx context.Context, id string) error
 }
 
 type PgStore struct{ pool *pgxpool.Pool }
@@ -22,12 +26,13 @@ func (s *PgStore) Create(ctx context.Context, userID, category, message string) 
 	return err
 }
 
-func (s *PgStore) List(ctx context.Context) ([]Feedback, error) {
+func (s *PgStore) List(ctx context.Context, status string) ([]Feedback, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT f.id, f.user_id, p.username, f.category, f.message, f.created_at
+		SELECT f.id, f.user_id, p.username, f.category, f.message, f.status, f.created_at
 		FROM feedback f
 		JOIN profiles p ON p.id = f.user_id
-		ORDER BY f.created_at DESC`)
+		WHERE ($1 = '' OR f.status = $1)
+		ORDER BY f.created_at DESC`, status)
 	if err != nil {
 		return nil, err
 	}
@@ -37,10 +42,43 @@ func (s *PgStore) List(ctx context.Context) ([]Feedback, error) {
 	for rows.Next() {
 		var f Feedback
 		if err := rows.Scan(&f.ID, &f.UserID, &f.Username, &f.Category,
-			&f.Message, &f.CreatedAt); err != nil {
+			&f.Message, &f.Status, &f.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, f)
 	}
 	return out, rows.Err()
+}
+
+func (s *PgStore) UpdateStatus(ctx context.Context, id, status string) error {
+	tag, err := s.pool.Exec(ctx, `UPDATE feedback SET status = $2 WHERE id = $1`, id, status)
+	if isInvalidUUID(err) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *PgStore) Delete(ctx context.Context, id string) error {
+	tag, err := s.pool.Exec(ctx, `DELETE FROM feedback WHERE id = $1`, id)
+	if isInvalidUUID(err) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func isInvalidUUID(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "22P02"
 }

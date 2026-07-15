@@ -17,7 +17,9 @@ abstract class AdminRepository {
   Future<void> setBuyOrderStatus(String id, String status);
   Future<void> startSync();
   Future<SyncStatus> fetchSyncStatus();
-  Future<List<FeedbackItem>> fetchFeedback();
+  Future<List<FeedbackItem>> fetchFeedback({String status = ''});
+  Future<void> setFeedbackStatus(String id, String status);
+  Future<void> deleteFeedback(String id);
   Future<PaginatedList<AdminUser>> fetchUsersPage(
       {String query = '', String? cursor, int limit = 20});
   Future<void> setUserAdmin(String id, bool isAdmin);
@@ -79,12 +81,22 @@ class ApiAdminRepository implements AdminRepository {
   }
 
   @override
-  Future<List<FeedbackItem>> fetchFeedback() async {
-    final data = await _api.get('/admin/feedback', auth: true);
+  Future<List<FeedbackItem>> fetchFeedback({String status = ''}) async {
+    final data = await _api.get('/admin/feedback',
+        auth: true,
+        query: status.isNotEmpty ? {'status': status} : null);
     return (data as List)
         .map((j) => FeedbackItem.fromJson(j as Map<String, dynamic>))
         .toList();
   }
+
+  @override
+  Future<void> setFeedbackStatus(String id, String status) => _api
+      .patch('/admin/feedback/$id', auth: true, body: {'status': status});
+
+  @override
+  Future<void> deleteFeedback(String id) =>
+      _api.delete('/admin/feedback/$id', auth: true);
 
   @override
   Future<PaginatedList<AdminUser>> fetchUsersPage(

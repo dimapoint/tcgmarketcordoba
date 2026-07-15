@@ -216,4 +216,46 @@ void main() {
     });
     await (await _repo(mock)).setUserAdmin('u1', true);
   });
+
+  test('fetchFeedback manda el filtro de status', () async {
+    final mock = MockClient((req) async {
+      expect(req.url.path, '/admin/feedback');
+      expect(req.url.queryParameters, {'status': 'nuevo'});
+      return http.Response(
+          jsonEncode([
+            {
+              'id': 'f1',
+              'username': 'reporter',
+              'category': 'bug',
+              'message': 'algo se rompió',
+              'status': 'nuevo',
+              'created_at': '2026-07-08T00:00:00Z',
+            }
+          ]),
+          200,
+          headers: {'content-type': 'application/json'});
+    });
+    final items = await (await _repo(mock)).fetchFeedback(status: 'nuevo');
+    expect(items, hasLength(1));
+    expect(items.first.status, 'nuevo');
+  });
+
+  test('setFeedbackStatus patchea el estado', () async {
+    final mock = MockClient((req) async {
+      expect(req.method, 'PATCH');
+      expect(req.url.path, '/admin/feedback/f1');
+      expect(jsonDecode(req.body), {'status': 'resuelto'});
+      return http.Response('', 204);
+    });
+    await (await _repo(mock)).setFeedbackStatus('f1', 'resuelto');
+  });
+
+  test('deleteFeedback borra el mensaje', () async {
+    final mock = MockClient((req) async {
+      expect(req.method, 'DELETE');
+      expect(req.url.path, '/admin/feedback/f1');
+      return http.Response('', 204);
+    });
+    await (await _repo(mock)).deleteFeedback('f1');
+  });
 }

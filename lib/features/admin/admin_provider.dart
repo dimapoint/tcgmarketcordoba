@@ -85,10 +85,13 @@ final adminBuyOrdersProvider = AsyncNotifierProvider.autoDispose<
     AdminBuyOrdersNotifier,
     PaginatedState<WantedOrder>>(AdminBuyOrdersNotifier.new);
 
+final adminFeedbackFilterProvider = valueStateProvider<String>('nuevo');
+
 final adminFeedbackProvider =
-    FutureProvider.autoDispose<List<FeedbackItem>>(
-  (ref) => ref.watch(adminRepositoryProvider).fetchFeedback(),
-);
+    FutureProvider.autoDispose<List<FeedbackItem>>((ref) {
+  final status = ref.watch(adminFeedbackFilterProvider);
+  return ref.watch(adminRepositoryProvider).fetchFeedback(status: status);
+});
 
 final adminUsersQueryProvider = valueStateProvider<String>('');
 
@@ -172,6 +175,22 @@ class AdminActionsNotifier extends AsyncNotifier<void> {
     );
     ref.invalidate(adminUsersProvider);
     ref.invalidate(adminStatsProvider);
+  }
+
+  Future<void> setFeedbackStatus(String id, String status) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref.read(adminRepositoryProvider).setFeedbackStatus(id, status),
+    );
+    ref.invalidate(adminFeedbackProvider);
+  }
+
+  Future<void> deleteFeedback(String id) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref.read(adminRepositoryProvider).deleteFeedback(id),
+    );
+    ref.invalidate(adminFeedbackProvider);
   }
 }
 

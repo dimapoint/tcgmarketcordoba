@@ -63,6 +63,7 @@ class FeedbackItem {
   final String username;
   final String category;
   final String message;
+  final String status;
   final DateTime createdAt;
 
   const FeedbackItem({
@@ -70,6 +71,7 @@ class FeedbackItem {
     required this.username,
     required this.category,
     required this.message,
+    this.status = 'nuevo',
     required this.createdAt,
   });
 
@@ -78,6 +80,7 @@ class FeedbackItem {
         username: json['username'] as String,
         category: json['category'] as String,
         message: json['message'] as String,
+        status: json['status'] as String? ?? 'nuevo',
         createdAt: DateTime.parse(json['created_at'] as String),
       );
 }

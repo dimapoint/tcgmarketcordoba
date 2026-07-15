@@ -132,6 +132,8 @@ func main() {
 	feedbackH := &feedback.Handler{Store: feedback.NewPgStore(pool)}
 	mux.Handle("POST /feedback", requireAuth(http.HandlerFunc(feedbackH.Create)))
 	mux.Handle("GET /admin/feedback", requireAdmin(http.HandlerFunc(feedbackH.List)))
+	mux.Handle("PATCH /admin/feedback/{id}", requireAdmin(http.HandlerFunc(feedbackH.Patch)))
+	mux.Handle("DELETE /admin/feedback/{id}", requireAdmin(http.HandlerFunc(feedbackH.Delete)))
 
 	sellerH := &sellers.Handler{
 		Profiles:  profileStore,
