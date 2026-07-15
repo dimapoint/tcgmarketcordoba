@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../shared/widgets/app_snackbar.dart';
 import '../feedback_repository.dart';
 
 class FeedbackScreen extends ConsumerStatefulWidget {
@@ -24,9 +25,8 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
   Future<void> _submit() async {
     final message = _messageCtrl.text.trim();
     if (message.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Escribí un mensaje antes de enviar')),
-      );
+      showAppSnackBar(context, 'Escribí un mensaje antes de enviar',
+          type: AppSnackBarType.error);
       return;
     }
     setState(() => _sending = true);
@@ -35,9 +35,8 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
           .read(feedbackRepositoryProvider)
           .submit(category: _category, message: message);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('¡Gracias! Recibimos tu mensaje.')),
-      );
+      showAppSnackBar(context, '¡Gracias! Recibimos tu mensaje.',
+          type: AppSnackBarType.success);
       // Deep link directo a /feedback: no hay stack para volver.
       if (context.canPop()) {
         context.pop();
@@ -47,9 +46,8 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _sending = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo enviar: $e')),
-      );
+      showAppSnackBar(context, 'No se pudo enviar: $e',
+          type: AppSnackBarType.error);
     }
   }
 

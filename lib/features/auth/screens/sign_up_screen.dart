@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../shared/widgets/app_snackbar.dart';
 import '../auth_provider.dart';
 import '../google/google_sign_in_section.dart';
 import '../widgets/auth_shell.dart';
@@ -32,9 +33,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     // redirect del router se encarga de llevar al usuario a donde iba.
     ref.listen(authActionsProvider, (_, next) {
       if (next.hasValue && !next.isLoading) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cuenta creada. ¡Bienvenido!')),
-        );
+        showAppSnackBar(context, 'Cuenta creada. ¡Bienvenido!',
+            type: AppSnackBarType.success);
       }
     });
 

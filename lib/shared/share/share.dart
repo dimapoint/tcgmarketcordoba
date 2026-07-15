@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/listing.dart';
 import '../models/wanted_order.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/price_text.dart';
 
 /// Textos de compartir para grupos de WhatsApp/Facebook. Funciones puras
@@ -65,9 +66,8 @@ Future<void> shareWithFallback(
               await Clipboard.setData(ClipboardData(text: url));
               if (ctx.mounted) Navigator.pop(ctx);
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Link copiado')),
-                );
+                showAppSnackBar(context, 'Link copiado',
+                    type: AppSnackBarType.success);
               }
             },
           ),

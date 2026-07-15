@@ -8,6 +8,8 @@ import '../../../shared/models/wanted_order.dart';
 import '../../../shared/share/share.dart';
 import '../../../shared/widgets/condition_badge.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/error_state.dart';
+import '../../../shared/widgets/skeleton.dart';
 import '../../../shared/widgets/max_width.dart';
 import '../../../shared/widgets/price_text.dart';
 import '../seller_provider.dart';
@@ -46,20 +48,15 @@ class SellerScreen extends ConsumerWidget {
         ],
       ),
       body: pageAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('No se pudo cargar el vendedor'),
-              TextButton(
-                onPressed: () => context.go('/'),
-                child: const Text('Ir al inicio'),
-              ),
-            ],
-          ),
+        loading: () => const WantedListSkeleton(),
+        error: (e, _) => ErrorState(
+          message: 'No se pudo cargar el vendedor',
+          onRetry: () => ref.invalidate(sellerPageProvider(username)),
         ),
-        data: (page) => _Body(page: page),
+        data: (page) => RefreshIndicator(
+          onRefresh: () async => ref.invalidate(sellerPageProvider(username)),
+          child: _Body(page: page),
+        ),
       ),
     );
   }

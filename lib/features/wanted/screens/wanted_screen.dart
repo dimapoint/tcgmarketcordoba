@@ -11,6 +11,8 @@ import '../../../shared/models/match_item.dart';
 import '../../../shared/models/wanted_order.dart';
 import '../../../shared/widgets/condition_badge.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/error_state.dart';
+import '../../../shared/widgets/skeleton.dart';
 import '../../../shared/widgets/max_width.dart';
 import '../../../shared/widgets/price_text.dart';
 import '../../../shared/widgets/scaffold_with_nav.dart';
@@ -110,8 +112,9 @@ class _MyWantedList extends ConsumerWidget {
         ref.watch(newMatchesProvider).value ?? const <MatchItem>[];
 
     return orders.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      loading: () => const WantedListSkeleton(),
+      error: (e, _) =>
+          ErrorState(onRetry: () => ref.invalidate(myWantedProvider('active'))),
       data: (items) {
         if (items.isEmpty && newMatches.isEmpty) {
           return Column(
@@ -130,7 +133,12 @@ class _MyWantedList extends ConsumerWidget {
           );
         }
         final titleStyle = Theme.of(context).textTheme.headlineSmall;
-        return ListView(
+        return RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(myWantedProvider('active'));
+            ref.invalidate(newMatchesProvider);
+          },
+          child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             if (newMatches.isNotEmpty) ...[
@@ -155,6 +163,7 @@ class _MyWantedList extends ConsumerWidget {
                 child: _MyWantedTile(order: o),
               ),
           ],
+          ),
         );
       },
     );

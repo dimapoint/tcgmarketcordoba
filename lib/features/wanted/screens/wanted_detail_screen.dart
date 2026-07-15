@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -9,6 +10,8 @@ import '../../../features/browse/listing_provider.dart' show sellerContactsProvi
 import '../../../shared/models/wanted_order.dart';
 import '../../../shared/share/share.dart';
 import '../../../shared/widgets/condition_badge.dart';
+import '../../../shared/widgets/error_state.dart';
+import '../../../shared/widgets/skeleton.dart';
 import '../../../shared/widgets/max_width.dart';
 import '../../../shared/widgets/price_text.dart';
 import '../wanted_provider.dart';
@@ -42,9 +45,12 @@ class WantedDetailScreen extends ConsumerWidget {
         ],
       ),
       body: orderAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (order) => _Body(order: order, isLoggedIn: session != null),
+        loading: () => const DetailSkeleton(),
+        error: (e, _) =>
+            ErrorState(onRetry: () => ref.invalidate(wantedDetailProvider(id))),
+        data: (order) => _Body(order: order, isLoggedIn: session != null)
+            .animate()
+            .fadeIn(duration: 200.ms),
       ),
     );
   }
@@ -64,9 +70,16 @@ class _Body extends StatelessWidget {
     final info = _Info(order: order, isLoggedIn: isLoggedIn);
     final card = image == null
         ? null
-        : ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: CachedNetworkImage(imageUrl: image, width: 220),
+        : Hero(
+            tag: 'wanted-photo-${order.id}',
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CachedNetworkImage(
+                imageUrl: image,
+                width: 220,
+                fadeInDuration: const Duration(milliseconds: 250),
+              ),
+            ),
           );
 
     return SingleChildScrollView(
@@ -280,8 +293,10 @@ class _ContactSection extends ConsumerWidget {
     final contactsAsync = ref.watch(sellerContactsProvider(buyerId));
 
     return contactsAsync.when(
-      loading: () => const CircularProgressIndicator(),
-      error: (e, _) => Text('Error: $e'),
+      loading: () => const ListTileSkeleton(),
+      error: (e, _) => ErrorState(
+        onRetry: () => ref.invalidate(sellerContactsProvider(buyerId)),
+      ),
       data: (contacts) => contacts.isEmpty
           ? Text(
               'El comprador no cargó métodos de contacto.',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,6 +8,8 @@ import '../../../features/auth/auth_provider.dart';
 import '../../../shared/models/listing.dart';
 import '../../../shared/share/share.dart';
 import '../../../shared/widgets/condition_badge.dart';
+import '../../../shared/widgets/error_state.dart';
+import '../../../shared/widgets/skeleton.dart';
 import '../../../shared/widgets/max_width.dart';
 import '../../../shared/widgets/photo_carousel.dart';
 import '../../../shared/widgets/price_text.dart';
@@ -41,9 +44,12 @@ class ListingDetailScreen extends ConsumerWidget {
         ],
       ),
       body: listingAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (listing) => _Body(listing: listing, isLoggedIn: session != null),
+        loading: () => const DetailSkeleton(),
+        error: (e, _) =>
+            ErrorState(onRetry: () => ref.invalidate(listingDetailProvider(id))),
+        data: (listing) => _Body(listing: listing, isLoggedIn: session != null)
+            .animate()
+            .fadeIn(duration: 200.ms),
       ),
     );
   }
@@ -62,6 +68,7 @@ class _Body extends StatelessWidget {
     final photos = PhotoCarousel(
       photos: listing.photos,
       fallbackImageUrl: listing.cardImageThumb(800),
+      heroTag: 'listing-photo-${listing.id}',
     );
     final info = _Info(listing: listing, isLoggedIn: isLoggedIn);
 
@@ -269,8 +276,10 @@ class _ContactSection extends ConsumerWidget {
     final contactsAsync = ref.watch(sellerContactsProvider(sellerId));
 
     return contactsAsync.when(
-      loading: () => const CircularProgressIndicator(),
-      error: (e, _) => Text('Error: $e'),
+      loading: () => const ListTileSkeleton(),
+      error: (e, _) => ErrorState(
+        onRetry: () => ref.invalidate(sellerContactsProvider(sellerId)),
+      ),
       data: (contacts) => contacts.isEmpty
           ? Text(
               'El vendedor no cargó métodos de contacto.',

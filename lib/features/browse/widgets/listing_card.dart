@@ -5,6 +5,7 @@ import '../../../shared/models/listing.dart';
 import '../../../shared/widgets/condition_badge.dart';
 import '../../../shared/widgets/foil_shimmer.dart';
 import '../../../shared/widgets/price_text.dart';
+import '../../../shared/widgets/skeleton.dart';
 
 class ListingCard extends StatefulWidget {
   final Listing listing;
@@ -55,16 +56,21 @@ class _CardBody extends StatelessWidget {
         children: [
           Expanded(
             child: imageUrl != null
-                ? ColoredBox(
-                    color: scheme.surfaceContainerHighest,
-                    child: CachedNetworkImage(
-                      imageUrl: imageUrl,
-                      fit: BoxFit.contain,
-                      width: double.infinity,
-                      placeholder: (_, _) => ColoredBox(
-                        color: scheme.surfaceContainerHighest,
+                ? Hero(
+                    tag: 'listing-photo-${listing.id}',
+                    child: ColoredBox(
+                      color: scheme.surfaceContainerHighest,
+                      child: CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                        fadeInDuration: const Duration(milliseconds: 250),
+                        placeholder: (_, _) => const Skeleton(
+                          width: double.infinity,
+                          borderRadius: BorderRadius.zero,
+                        ),
+                        errorWidget: (_, _, _) => _Placeholder(scheme: scheme),
                       ),
-                      errorWidget: (_, _, _) => _Placeholder(scheme: scheme),
                     ),
                   )
                 : _Placeholder(scheme: scheme),

@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/error_state.dart';
+import '../../../shared/widgets/skeleton.dart';
 import '../../../shared/widgets/price_reference_hint.dart';
 import '../post_listing_provider.dart';
 import '../../../shared/models/card_printing.dart';
@@ -77,13 +80,11 @@ class _PostListingScreenState extends ConsumerState<PostListingScreen> {
     if (!mounted) return;
     switch (result) {
       case SubmitSuccess():
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('¡Publicación creada!')),
-        );
+        showAppSnackBar(context, '¡Publicación creada!',
+            type: AppSnackBarType.success);
         context.go('/');
       case SubmitFailure(:final message):
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message)));
+        showAppSnackBar(context, message, type: AppSnackBarType.error);
       case SubmitSkipped():
         break;
     }
@@ -179,8 +180,12 @@ class _CardSearchStep extends ConsumerWidget {
         ),
         Expanded(
           child: results.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Error: $e')),
+            loading: () => const Column(
+              children: [ListTileSkeleton(), ListTileSkeleton(), ListTileSkeleton()],
+            ),
+            error: (e, _) =>
+                ErrorState(
+                onRetry: () => ref.invalidate(cardSearchResultsProvider)),
             data: (items) => items.isEmpty
                 ? const EmptyState(
                     icon: Icons.search,

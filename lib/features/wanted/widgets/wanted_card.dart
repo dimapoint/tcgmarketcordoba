@@ -26,15 +26,19 @@ class WantedCard extends StatelessWidget {
               Row(
                 children: [
                   if (thumb != null) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: ColoredBox(
-                        color: scheme.surfaceContainerHighest,
-                        child: CachedNetworkImage(
-                          imageUrl: thumb,
-                          width: 40,
-                          height: 56,
-                          fit: BoxFit.contain,
+                    Hero(
+                      tag: 'wanted-photo-${order.id}',
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: ColoredBox(
+                          color: scheme.surfaceContainerHighest,
+                          child: CachedNetworkImage(
+                            imageUrl: thumb,
+                            width: 40,
+                            height: 56,
+                            fit: BoxFit.contain,
+                            fadeInDuration: const Duration(milliseconds: 250),
+                          ),
                         ),
                       ),
                     ),

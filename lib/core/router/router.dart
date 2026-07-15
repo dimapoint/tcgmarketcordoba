@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/admin/screens/admin_screen.dart';
@@ -84,6 +84,32 @@ String? computeRedirect({
   return null;
 }
 
+/// Transición compartida de todas las rutas: fade + slide sutil hacia arriba.
+/// Con animaciones deshabilitadas el fade dura igual pero GoRouter respeta
+/// el flag a nivel MediaQuery (las transiciones se saltean solas).
+CustomTransitionPage<void> _page(GoRouterState state, Widget child) =>
+    CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 250),
+      reverseTransitionDuration: const Duration(milliseconds: 200),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        if (MediaQuery.of(context).disableAnimations) return child;
+        final curved =
+            CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.02),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+
 final routerProvider = Provider<GoRouter>((ref) {
   // apiClientProvider se overridea con un valor fijo en main.dart, así que
   // este Provider corre una sola vez: un único GoRouter por sesión de app.
@@ -108,30 +134,32 @@ final routerProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (context, state, child) => ScaffoldWithNav(child: child),
         routes: [
-          GoRoute(path: '/',            builder: (c, s) => const BrowseScreen()),
-          GoRoute(path: '/wanted',      builder: (c, s) => const WantedScreen()),
-          GoRoute(path: '/wanted/new',  builder: (c, s) =>
-              PostWantedScreen(initialQuery: s.uri.queryParameters['q'])),
-          GoRoute(path: '/post',        builder: (c, s) => const PostListingScreen()),
-          GoRoute(path: '/my-listings', builder: (c, s) => const MyListingsScreen()),
-          GoRoute(path: '/profile',     builder: (c, s) => const ProfileScreen()),
-          GoRoute(path: '/feedback',    builder: (c, s) => const FeedbackScreen()),
+          GoRoute(path: '/',            pageBuilder: (c, s) => _page(s, const BrowseScreen())),
+          GoRoute(path: '/wanted',      pageBuilder: (c, s) => _page(s, const WantedScreen())),
+          GoRoute(path: '/wanted/new',  pageBuilder: (c, s) => _page(s,
+              PostWantedScreen(initialQuery: s.uri.queryParameters['q']))),
+          GoRoute(path: '/post',        pageBuilder: (c, s) => _page(s, const PostListingScreen())),
+          GoRoute(path: '/my-listings', pageBuilder: (c, s) => _page(s, const MyListingsScreen())),
+          GoRoute(path: '/profile',     pageBuilder: (c, s) => _page(s, const ProfileScreen())),
+          GoRoute(path: '/feedback',    pageBuilder: (c, s) => _page(s, const FeedbackScreen())),
         ],
       ),
       // Deep links cortos y compartibles: no chocan con las rutas JSON de la
       // API (/listings/{id}, /buy-orders/{id}) cuando el backend sirve el SPA.
       GoRoute(
         path: '/l/:id',
-        builder: (c, s) => ListingDetailScreen(id: s.pathParameters['id']!),
+        pageBuilder: (c, s) =>
+            _page(s, ListingDetailScreen(id: s.pathParameters['id']!)),
       ),
       GoRoute(
         path: '/b/:id',
-        builder: (c, s) => WantedDetailScreen(id: s.pathParameters['id']!),
+        pageBuilder: (c, s) =>
+            _page(s, WantedDetailScreen(id: s.pathParameters['id']!)),
       ),
       GoRoute(
         path: '/u/:username',
-        builder: (c, s) =>
-            SellerScreen(username: s.pathParameters['username']!),
+        pageBuilder: (c, s) =>
+            _page(s, SellerScreen(username: s.pathParameters['username']!)),
       ),
       // Alias viejos (pre path-URLs): redirigen a los paths cortos.
       GoRoute(
@@ -142,10 +170,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/buy-orders/:id',
         redirect: (c, s) => '/b/${s.pathParameters['id']}',
       ),
-      GoRoute(path: '/admin',      builder: (c, s) => const AdminScreen()),
-      GoRoute(path: '/sign-in',    builder: (c, s) => const SignInScreen()),
-      GoRoute(path: '/sign-up',    builder: (c, s) => const SignUpScreen()),
-      GoRoute(path: '/onboarding', builder: (c, s) => const OnboardingScreen()),
+      GoRoute(path: '/admin',      pageBuilder: (c, s) => _page(s, const AdminScreen())),
+      GoRoute(path: '/sign-in',    pageBuilder: (c, s) => _page(s, const SignInScreen())),
+      GoRoute(path: '/sign-up',    pageBuilder: (c, s) => _page(s, const SignUpScreen())),
+      GoRoute(path: '/onboarding', pageBuilder: (c, s) => _page(s, const OnboardingScreen())),
     ],
   );
 });

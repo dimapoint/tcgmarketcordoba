@@ -7,6 +7,8 @@ import '../../../shared/models/listing.dart';
 import '../../../shared/share/share.dart';
 import '../../../shared/widgets/condition_badge.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/error_state.dart';
+import '../../../shared/widgets/skeleton.dart';
 import '../../../shared/widgets/price_text.dart';
 import '../my_listings_provider.dart';
 
@@ -87,8 +89,9 @@ class _ListingsList extends ConsumerWidget {
     final listings = ref.watch(myListingsProvider(status));
 
     return listings.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      loading: () => const WantedListSkeleton(),
+      error: (e, _) =>
+          ErrorState(onRetry: () => ref.invalidate(myListingsProvider(status))),
       data: (items) => items.isEmpty
           ? (status == 'active'
               ? EmptyState(
@@ -101,11 +104,14 @@ class _ListingsList extends ConsumerWidget {
                   icon: Icons.sell_outlined,
                   message: 'Todavía no vendiste ninguna carta',
                 ))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: items.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (_, i) => _ListingTile(listing: items[i]),
+          : RefreshIndicator(
+              onRefresh: () async => ref.invalidate(myListingsProvider(status)),
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: items.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (_, i) => _ListingTile(listing: items[i]),
+              ),
             ),
     );
   }
@@ -140,8 +146,9 @@ class _ListingTile extends ConsumerWidget {
                           child: CachedNetworkImage(
                             imageUrl: thumb,
                             fit: BoxFit.contain,
-                            placeholder: (_, _) => ColoredBox(
-                                color: scheme.surfaceContainerHighest),
+                            fadeInDuration: const Duration(milliseconds: 250),
+                            placeholder: (_, _) => const Skeleton(
+                                borderRadius: BorderRadius.zero),
                             errorWidget: (_, _, _) => ColoredBox(
                               color: scheme.surfaceContainerHighest,
                               child: Icon(Icons.style_outlined,

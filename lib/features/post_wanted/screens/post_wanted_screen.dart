@@ -5,7 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/card_printing.dart';
+import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/error_state.dart';
+import '../../../shared/widgets/skeleton.dart';
 import '../../../shared/widgets/price_reference_hint.dart';
 import '../post_wanted_provider.dart';
 import '../post_wanted_repository.dart';
@@ -103,16 +106,14 @@ class _PostWantedScreenState extends ConsumerState<PostWantedScreen> {
           );
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      showAppSnackBar(context, e.message, type: AppSnackBarType.error);
       return;
     }
 
     ref.read(postWantedFormProvider.notifier).reset();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('¡Búsqueda publicada!')),
-    );
+    showAppSnackBar(context, '¡Búsqueda publicada!',
+        type: AppSnackBarType.success);
     context.go('/wanted');
   }
 }
@@ -222,8 +223,11 @@ class _CardSearchStepState extends ConsumerState<_CardSearchStep> {
         ),
         Expanded(
           child: results.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Error: $e')),
+            loading: () => const Column(
+              children: [ListTileSkeleton(), ListTileSkeleton(), ListTileSkeleton()],
+            ),
+            error: (e, _) => ErrorState(
+                onRetry: () => ref.invalidate(wantedCardSearchResultsProvider)),
             data: (items) => items.isEmpty
                 ? const EmptyState(
                     icon: Icons.search,

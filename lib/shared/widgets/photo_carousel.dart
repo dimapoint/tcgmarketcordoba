@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../models/listing.dart';
+import 'skeleton.dart';
 
 class PhotoCarousel extends StatefulWidget {
   final List<ListingPhoto> photos;
@@ -8,7 +9,17 @@ class PhotoCarousel extends StatefulWidget {
   /// Imagen de catálogo de la carta: se muestra cuando el vendedor no subió
   /// fotos propias, en lugar del placeholder genérico.
   final String? fallbackImageUrl;
-  const PhotoCarousel({super.key, required this.photos, this.fallbackImageUrl});
+
+  /// Tag de Hero de la primera imagen; debe coincidir con el de la card
+  /// de origen para la transición card→detalle.
+  final String? heroTag;
+
+  const PhotoCarousel({
+    super.key,
+    required this.photos,
+    this.fallbackImageUrl,
+    this.heroTag,
+  });
 
   @override
   State<PhotoCarousel> createState() => _PhotoCarouselState();
@@ -16,6 +27,9 @@ class PhotoCarousel extends StatefulWidget {
 
 class _PhotoCarouselState extends State<PhotoCarousel> {
   int _current = 0;
+
+  Widget _hero(Widget child) =>
+      widget.heroTag == null ? child : Hero(tag: widget.heroTag!, child: child);
 
   @override
   Widget build(BuildContext context) {
@@ -25,11 +39,21 @@ class _PhotoCarouselState extends State<PhotoCarousel> {
       final fallback = widget.fallbackImageUrl;
       return AspectRatio(
         aspectRatio: 1,
-        child: ColoredBox(
-          color: scheme.surfaceContainerHighest,
-          child: fallback != null
-              ? CachedNetworkImage(imageUrl: fallback, fit: BoxFit.contain)
-              : Icon(Icons.style_outlined, size: 64, color: scheme.outline),
+        child: _hero(
+          ColoredBox(
+            color: scheme.surfaceContainerHighest,
+            child: fallback != null
+                ? CachedNetworkImage(
+                    imageUrl: fallback,
+                    fit: BoxFit.contain,
+                    fadeInDuration: const Duration(milliseconds: 250),
+                    placeholder: (_, _) => const Skeleton(
+                      width: double.infinity,
+                      borderRadius: BorderRadius.zero,
+                    ),
+                  )
+                : Icon(Icons.style_outlined, size: 64, color: scheme.outline),
+          ),
         ),
       );
     }
@@ -41,17 +65,23 @@ class _PhotoCarouselState extends State<PhotoCarousel> {
           child: PageView.builder(
             itemCount: widget.photos.length,
             onPageChanged: (i) => setState(() => _current = i),
-            itemBuilder: (_, i) => CachedNetworkImage(
-              imageUrl: widget.photos[i].url,
-              fit: BoxFit.contain,
-              placeholder: (_, _) =>
-                  ColoredBox(color: scheme.surfaceContainerHighest),
-              errorWidget: (_, _, _) => ColoredBox(
-                color: scheme.surfaceContainerHighest,
-                child: Icon(Icons.broken_image_outlined,
-                    size: 40, color: scheme.outline),
-              ),
-            ),
+            itemBuilder: (_, i) {
+              final image = CachedNetworkImage(
+                imageUrl: widget.photos[i].url,
+                fit: BoxFit.contain,
+                fadeInDuration: const Duration(milliseconds: 250),
+                placeholder: (_, _) => const Skeleton(
+                  width: double.infinity,
+                  borderRadius: BorderRadius.zero,
+                ),
+                errorWidget: (_, _, _) => ColoredBox(
+                  color: scheme.surfaceContainerHighest,
+                  child: Icon(Icons.broken_image_outlined,
+                      size: 40, color: scheme.outline),
+                ),
+              );
+              return i == 0 ? _hero(image) : image;
+            },
           ),
         ),
         if (widget.photos.length > 1) ...[

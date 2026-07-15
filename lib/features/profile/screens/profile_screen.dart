@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../features/auth/auth_provider.dart';
 import '../../../shared/models/profile.dart';
+import '../../../shared/widgets/error_state.dart';
+import '../../../shared/widgets/skeleton.dart';
 import '../profile_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -22,8 +24,16 @@ class ProfileScreen extends ConsumerWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
             child: profileAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
+              loading: () => const Column(
+                children: [
+                  SizedBox(height: 24),
+                  ListTileSkeleton(),
+                  ListTileSkeleton(),
+                  ListTileSkeleton(),
+                ],
+              ),
+              error: (e, _) =>
+                  ErrorState(onRetry: () => ref.invalidate(profileProvider)),
               data: (profile) => profile == null
                   ? const SizedBox()
                   : _ProfileBody(
@@ -173,11 +183,10 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
                 ),
                 const SizedBox(height: 8),
                 widget.contactsAsync.when(
-                  loading: () => const Padding(
-                    padding: EdgeInsets.all(8),
-                    child: CircularProgressIndicator(),
+                  loading: () => const ListTileSkeleton(),
+                  error: (e, _) => ErrorState(
+                    onRetry: () => ref.invalidate(contactMethodsProvider),
                   ),
-                  error: (e, _) => Text('Error: $e'),
                   data: (contacts) => Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [

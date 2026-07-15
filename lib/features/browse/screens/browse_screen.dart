@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/error_state.dart';
+import '../../../shared/widgets/skeleton.dart';
 import '../../../shared/widgets/max_width.dart';
 import '../../../shared/widgets/scaffold_with_nav.dart';
 import '../../wanted/wanted_provider.dart';
@@ -106,8 +109,9 @@ class _SellingGrid extends ConsumerWidget {
     final listings = ref.watch(listingsProvider);
 
     return listings.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      loading: () => const SkeletonGrid(),
+      error: (e, _) =>
+          ErrorState(onRetry: () => ref.invalidate(listingsProvider)),
       data: (state) {
         final items = state.items;
         return items.isEmpty
@@ -145,7 +149,7 @@ class _SellingGrid extends ConsumerWidget {
                     return ListingCard(listing: items[i]);
                   },
                 ),
-              );
+              ).animate().fadeIn(duration: 200.ms);
       },
     );
   }
@@ -163,8 +167,9 @@ class _WantedBoard extends ConsumerWidget {
     final query = ref.watch(searchQueryProvider);
 
     return orders.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      loading: () => const WantedListSkeleton(),
+      error: (e, _) =>
+          ErrorState(onRetry: () => ref.invalidate(wantedOrdersProvider)),
       data: (state) {
         final items = state.items;
         return items.isEmpty
@@ -198,7 +203,7 @@ class _WantedBoard extends ConsumerWidget {
                     return WantedCard(order: items[i]);
                   },
                 ),
-              );
+              ).animate().fadeIn(duration: 200.ms);
       },
     );
   }
