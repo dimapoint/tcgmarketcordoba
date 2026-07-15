@@ -1,0 +1,13 @@
+# Mantiene el contexto de build chico y evita que un build local arrastre
+# estado de Windows (.dart_tool con paths absolutos) adentro del contenedor.
+.git
+.github
+.idea
+.claude
+.remember
+.superpowers
+.dart_tool
+build
+.env
+backend/.env
+*.iml

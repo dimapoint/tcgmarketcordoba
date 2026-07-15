@@ -1,7 +1,35 @@
 # Imagen de producción para Fly.io: binario Go + build web de Flutter.
-# El build web se genera ANTES con deploy.ps1 (flutter build web --release
-# con API_URL de prod) y acá solo se copia. No pases API_URL como build-arg:
-# el Dockerfile no lo usa; va embebido en build/web/assets/.env.
+# Auto-contenido: el build web se genera acá adentro, así el deploy funciona
+# igual desde deploy.ps1, la UI web de Fly o CI (el contexto git no trae
+# build/web ni .env, ambos gitignoreados).
+
+# ── Stage 0: build web de Flutter ────────────────────────────────────────────
+# No existe imagen Docker oficial de Flutter (Google solo distribuye el SDK),
+# así que se instala de la forma soportada: clonando flutter/flutter en el tag
+# exacto — la misma versión que se usa en dev local.
+FROM debian:stable-slim AS webbuilder
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      git curl ca-certificates unzip xz-utils zip \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 --branch 3.44.6 https://github.com/flutter/flutter.git /flutter
+ENV PATH="/flutter/bin:$PATH"
+# Descarga el Dart SDK y los artefactos web una sola vez, cacheado como layer.
+RUN flutter --version && flutter precache --web
+
+WORKDIR /app
+
+COPY pubspec.yaml pubspec.lock ./
+RUN flutter pub get
+
+COPY . .
+# .env es un asset bundleado (pubspec.yaml) y gitignoreado: se genera acá con
+# los valores públicos de prod. API_URL = mismo origen; el client ID de Google
+# es público por diseño (OAuth). No hay secretos en esta imagen.
+RUN printf 'API_URL=https://tcgmarketcordoba.fly.dev\nGOOGLE_CLIENT_ID=184679876511-l6647cep8tj76meiru5mq7grdc9l5ljf.apps.googleusercontent.com\n' > .env \
+ && flutter build web --release
 
 # ── Stage 1: build del backend ───────────────────────────────────────────────
 FROM golang:1.26-alpine AS builder
@@ -26,7 +54,7 @@ COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 USER 65534:65534
 
 COPY --from=builder /out/api /api
-COPY build/web /web
+COPY --from=webbuilder /app/build/web /web
 
 ENV WEB_DIR=/web
 
