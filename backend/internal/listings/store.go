@@ -130,14 +130,23 @@ func (s *PgStore) ActiveBySeller(ctx context.Context, username string) ([]Listin
 }
 
 // AllAdmin lista publicaciones de cualquier vendedor y estado, con filtros
-// opcionales por status y por nombre de carta o username. No integra la
-// interfaz Store: lo consume el paquete admin vía su propia interfaz.
-func (s *PgStore) AllAdmin(ctx context.Context, status, query string) ([]Listing, error) {
-	rows, err := s.pool.Query(ctx, selectListing+`
-		WHERE ($1 = '' OR l.status = $1::listing_status)
-		  AND ($2 = '' OR c.name ILIKE '%'||$2||'%' OR p.username ILIKE '%'||$2||'%')
-		ORDER BY l.created_at DESC
-		LIMIT 200`, status, query)
+// opcionales por status y por nombre de carta o username, paginado con
+// keyset cursor. No integra la interfaz Store: lo consume el paquete admin
+// vía su propia interfaz.
+func (s *PgStore) AllAdmin(ctx context.Context, status, query string, cursorTime *time.Time, cursorID string, limit int) ([]Listing, error) {
+	where := `($1 = '' OR l.status = $1::listing_status)
+		  AND ($2 = '' OR c.name ILIKE '%'||$2||'%' OR p.username ILIKE '%'||$2||'%')`
+	args := []any{status, query}
+
+	if cursorTime != nil {
+		where += ` AND (l.created_at, l.id) < ($3, $4)`
+		args = append(args, *cursorTime, cursorID)
+	}
+
+	q := selectListing + ` WHERE ` + where + ` ORDER BY l.created_at DESC, l.id DESC LIMIT $` + strconv.Itoa(len(args)+1)
+	args = append(args, limit)
+
+	rows, err := s.pool.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}

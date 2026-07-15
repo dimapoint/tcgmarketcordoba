@@ -120,14 +120,23 @@ func (s *PgStore) ActiveByBuyer(ctx context.Context, username string) ([]BuyOrde
 }
 
 // AllAdmin lista búsquedas de cualquier comprador y estado, con filtros
-// opcionales por status y por nombre de carta o username. No integra la
-// interfaz Store: lo consume el paquete admin vía su propia interfaz.
-func (s *PgStore) AllAdmin(ctx context.Context, status, query string) ([]BuyOrder, error) {
-	rows, err := s.pool.Query(ctx, selectBuyOrder+`
-		WHERE ($1 = '' OR bo.status = $1::buy_order_status)
-		  AND ($2 = '' OR c.name ILIKE '%'||$2||'%' OR p.username ILIKE '%'||$2||'%')
-		ORDER BY bo.created_at DESC
-		LIMIT 200`, status, query)
+// opcionales por status y por nombre de carta o username, paginado con
+// keyset cursor. No integra la interfaz Store: lo consume el paquete admin
+// vía su propia interfaz.
+func (s *PgStore) AllAdmin(ctx context.Context, status, query string, cursorTime *time.Time, cursorID string, limit int) ([]BuyOrder, error) {
+	where := `($1 = '' OR bo.status = $1::buy_order_status)
+		  AND ($2 = '' OR c.name ILIKE '%'||$2||'%' OR p.username ILIKE '%'||$2||'%')`
+	args := []any{status, query}
+
+	if cursorTime != nil {
+		where += ` AND (bo.created_at, bo.id) < ($3, $4)`
+		args = append(args, *cursorTime, cursorID)
+	}
+
+	q := selectBuyOrder + ` WHERE ` + where + ` ORDER BY bo.created_at DESC, bo.id DESC LIMIT $` + strconv.Itoa(len(args)+1)
+	args = append(args, limit)
+
+	rows, err := s.pool.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}

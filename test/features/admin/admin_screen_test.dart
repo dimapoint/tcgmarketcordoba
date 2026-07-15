@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tcgmarketcordoba/core/api/paginated.dart';
 import 'package:tcgmarketcordoba/core/api/session.dart';
 import 'package:tcgmarketcordoba/features/admin/admin_models.dart';
+import 'package:tcgmarketcordoba/features/admin/admin_provider.dart';
 import 'package:tcgmarketcordoba/features/admin/admin_repository.dart';
 import 'package:tcgmarketcordoba/features/admin/screens/admin_screen.dart';
 import 'package:tcgmarketcordoba/features/auth/auth_provider.dart';
@@ -12,7 +14,10 @@ import 'package:tcgmarketcordoba/shared/models/wanted_order.dart';
 class _FakeAdminRepository implements AdminRepository {
   final listingCalls = <(String, String)>[];
   final buyOrderCalls = <(String, String)>[];
+  final listingsPageCursors = <String?>[];
   var syncStarts = 0;
+  String? listingsNextCursor;
+  String? buyOrdersNextCursor;
 
   @override
   Future<List<FeedbackItem>> fetchFeedback() async => [
@@ -36,9 +41,14 @@ class _FakeAdminRepository implements AdminRepository {
       );
 
   @override
-  Future<List<Listing>> fetchListings(
-          {String status = '', String query = ''}) async =>
-      [
+  Future<PaginatedList<Listing>> fetchListingsPage(
+      {String status = '',
+      String query = '',
+      String? cursor,
+      int limit = 20}) async {
+    listingsPageCursors.add(cursor);
+    return PaginatedList(
+      data: [
         Listing.fromJson({
           'id': 'l1',
           'seller_id': 'u1',
@@ -55,7 +65,10 @@ class _FakeAdminRepository implements AdminRepository {
           'created_at': '2026-07-08T00:00:00Z',
           'card_image_url': null,
         }),
-      ];
+      ],
+      nextCursor: listingsNextCursor,
+    );
+  }
 
   @override
   Future<void> setListingStatus(String id, String status) async {
@@ -63,9 +76,13 @@ class _FakeAdminRepository implements AdminRepository {
   }
 
   @override
-  Future<List<WantedOrder>> fetchBuyOrders(
-          {String status = '', String query = ''}) async =>
-      [
+  Future<PaginatedList<WantedOrder>> fetchBuyOrdersPage(
+      {String status = '',
+      String query = '',
+      String? cursor,
+      int limit = 20}) async {
+    return PaginatedList(
+      data: [
         WantedOrder.fromJson({
           'id': 'b1',
           'buyer_id': 'u2',
@@ -81,7 +98,10 @@ class _FakeAdminRepository implements AdminRepository {
           'buyer_city': 'Córdoba',
           'created_at': '2026-07-08T00:00:00Z',
         }),
-      ];
+      ],
+      nextCursor: buyOrdersNextCursor,
+    );
+  }
 
   @override
   Future<void> setBuyOrderStatus(String id, String status) async {
@@ -165,6 +185,24 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Quitar'));
     await tester.pumpAndSettle();
     expect(repo.listingCalls, [('l1', 'removed')]);
+  });
+
+  test('AdminListingsNotifier.loadMore pide la próxima página con el cursor',
+      () async {
+    final repo = _FakeAdminRepository();
+    repo.listingsNextCursor = 'cursor-2';
+    final container =
+        ProviderContainer(overrides: [adminRepositoryProvider.overrideWithValue(repo)]);
+    addTearDown(container.dispose);
+
+    await container.read(adminListingsProvider.future);
+    expect(repo.listingsPageCursors, [null]);
+
+    await container.read(adminListingsProvider.notifier).loadMore();
+    expect(repo.listingsPageCursors, [null, 'cursor-2']);
+
+    final state = container.read(adminListingsProvider).value!;
+    expect(state.items, hasLength(2)); // página inicial + la cargada de más
   });
 
   testWidgets('restaura un buscado eliminado', (tester) async {

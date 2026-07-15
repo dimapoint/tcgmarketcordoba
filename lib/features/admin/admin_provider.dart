@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/api/paginated.dart';
 import '../../shared/models/listing.dart';
 import '../../shared/models/wanted_order.dart';
 import '../../shared/state/value_state.dart';
@@ -15,24 +16,74 @@ final adminStatsProvider = FutureProvider.autoDispose<AdminStats>(
 final adminListingsFilterProvider =
     valueStateProvider<AdminFilter>((status: '', query: ''));
 
-final adminListingsProvider =
-    FutureProvider.autoDispose<List<Listing>>((ref) {
-  final f = ref.watch(adminListingsFilterProvider);
-  return ref
-      .watch(adminRepositoryProvider)
-      .fetchListings(status: f.status, query: f.query);
-});
+class AdminListingsNotifier extends AsyncNotifier<PaginatedState<Listing>> {
+  @override
+  Future<PaginatedState<Listing>> build() async {
+    final f = ref.watch(adminListingsFilterProvider);
+    final page = await ref
+        .watch(adminRepositoryProvider)
+        .fetchListingsPage(status: f.status, query: f.query);
+    return PaginatedState(items: page.data, nextCursor: page.nextCursor);
+  }
+
+  Future<void> loadMore() async {
+    final current = state.value;
+    if (current == null || !current.hasMore || current.isLoadingMore) return;
+
+    state = AsyncData(current.copyWith(isLoadingMore: true));
+    try {
+      final f = ref.read(adminListingsFilterProvider);
+      final page = await ref.read(adminRepositoryProvider).fetchListingsPage(
+          status: f.status, query: f.query, cursor: current.nextCursor);
+      state = AsyncData(PaginatedState(
+        items: [...current.items, ...page.data],
+        nextCursor: page.nextCursor,
+      ));
+    } catch (e) {
+      state = AsyncData(current.copyWith(isLoadingMore: false));
+    }
+  }
+}
+
+final adminListingsProvider = AsyncNotifierProvider.autoDispose<
+    AdminListingsNotifier, PaginatedState<Listing>>(AdminListingsNotifier.new);
 
 final adminBuyOrdersFilterProvider =
     valueStateProvider<AdminFilter>((status: '', query: ''));
 
-final adminBuyOrdersProvider =
-    FutureProvider.autoDispose<List<WantedOrder>>((ref) {
-  final f = ref.watch(adminBuyOrdersFilterProvider);
-  return ref
-      .watch(adminRepositoryProvider)
-      .fetchBuyOrders(status: f.status, query: f.query);
-});
+class AdminBuyOrdersNotifier
+    extends AsyncNotifier<PaginatedState<WantedOrder>> {
+  @override
+  Future<PaginatedState<WantedOrder>> build() async {
+    final f = ref.watch(adminBuyOrdersFilterProvider);
+    final page = await ref
+        .watch(adminRepositoryProvider)
+        .fetchBuyOrdersPage(status: f.status, query: f.query);
+    return PaginatedState(items: page.data, nextCursor: page.nextCursor);
+  }
+
+  Future<void> loadMore() async {
+    final current = state.value;
+    if (current == null || !current.hasMore || current.isLoadingMore) return;
+
+    state = AsyncData(current.copyWith(isLoadingMore: true));
+    try {
+      final f = ref.read(adminBuyOrdersFilterProvider);
+      final page = await ref.read(adminRepositoryProvider).fetchBuyOrdersPage(
+          status: f.status, query: f.query, cursor: current.nextCursor);
+      state = AsyncData(PaginatedState(
+        items: [...current.items, ...page.data],
+        nextCursor: page.nextCursor,
+      ));
+    } catch (e) {
+      state = AsyncData(current.copyWith(isLoadingMore: false));
+    }
+  }
+}
+
+final adminBuyOrdersProvider = AsyncNotifierProvider.autoDispose<
+    AdminBuyOrdersNotifier,
+    PaginatedState<WantedOrder>>(AdminBuyOrdersNotifier.new);
 
 final adminFeedbackProvider =
     FutureProvider.autoDispose<List<FeedbackItem>>(

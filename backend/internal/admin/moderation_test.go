@@ -7,20 +7,26 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"tcgmarketcordoba/internal/auth"
 	"tcgmarketcordoba/internal/buyorders"
+	"tcgmarketcordoba/internal/httpx"
 	"tcgmarketcordoba/internal/listings"
 )
 
 type fakeListingMod struct {
 	gotStatus, gotQuery string
+	gotCursorTime       *time.Time
+	gotCursorID         string
+	gotLimit            int
 	items               []listings.Listing
 	statuses            map[string]string
 }
 
-func (f *fakeListingMod) AllAdmin(_ context.Context, status, query string) ([]listings.Listing, error) {
+func (f *fakeListingMod) AllAdmin(_ context.Context, status, query string, cursorTime *time.Time, cursorID string, limit int) ([]listings.Listing, error) {
 	f.gotStatus, f.gotQuery = status, query
+	f.gotCursorTime, f.gotCursorID, f.gotLimit = cursorTime, cursorID, limit
 	return f.items, nil
 }
 
@@ -34,12 +40,16 @@ func (f *fakeListingMod) AdminUpdateStatus(_ context.Context, id, status string)
 
 type fakeBuyOrderMod struct {
 	gotStatus, gotQuery string
+	gotCursorTime       *time.Time
+	gotCursorID         string
+	gotLimit            int
 	items               []buyorders.BuyOrder
 	statuses            map[string]string
 }
 
-func (f *fakeBuyOrderMod) AllAdmin(_ context.Context, status, query string) ([]buyorders.BuyOrder, error) {
+func (f *fakeBuyOrderMod) AllAdmin(_ context.Context, status, query string, cursorTime *time.Time, cursorID string, limit int) ([]buyorders.BuyOrder, error) {
 	f.gotStatus, f.gotQuery = status, query
+	f.gotCursorTime, f.gotCursorID, f.gotLimit = cursorTime, cursorID, limit
 	return f.items, nil
 }
 
@@ -101,9 +111,53 @@ func TestListListingsPassesFilters(t *testing.T) {
 	if lm.gotStatus != "removed" || lm.gotQuery != "kha" {
 		t.Fatalf("filtros = (%q, %q)", lm.gotStatus, lm.gotQuery)
 	}
-	var out []listings.Listing
+	var out httpx.PageResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestListListingsReturnsEnvelopeWithCursor(t *testing.T) {
+	h, store, lm, _ := testModHandler()
+	lm.items = make([]listings.Listing, 21)
+	for i := range lm.items {
+		lm.items[i] = listings.Listing{ID: "l", CreatedAt: time.Now()}
+	}
+	rec := adminDo(t, testMux(h, store), "GET", "/admin/listings", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body)
+	}
+	var out httpx.PageResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	var data []listings.Listing
+	if b, err := json.Marshal(out.Data); err == nil {
+		json.Unmarshal(b, &data)
+	}
+	if len(data) != 20 {
+		t.Fatalf("len(data) = %d, want 20", len(data))
+	}
+	if out.NextCursor == "" {
+		t.Fatal("next_cursor vacío, esperaba uno")
+	}
+	if lm.gotLimit != 21 {
+		t.Fatalf("gotLimit = %d, want 21 (limit+1)", lm.gotLimit)
+	}
+}
+
+func TestListListingsPassesCursor(t *testing.T) {
+	h, store, lm, _ := testModHandler()
+	cursor := httpx.EncodeCursor(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), "l5")
+	rec := adminDo(t, testMux(h, store), "GET", "/admin/listings?cursor="+cursor+"&limit=5", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body)
+	}
+	if lm.gotCursorTime == nil || lm.gotCursorID != "l5" {
+		t.Fatalf("cursor no decodificado: %v, %q", lm.gotCursorTime, lm.gotCursorID)
+	}
+	if lm.gotLimit != 6 {
+		t.Fatalf("gotLimit = %d, want 6 (limit+1)", lm.gotLimit)
 	}
 }
 

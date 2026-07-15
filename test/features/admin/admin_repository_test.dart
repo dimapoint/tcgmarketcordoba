@@ -82,28 +82,33 @@ void main() {
     expect(stats.newBuyOrders7d, 4);
   });
 
-  test('fetchListings manda filtros y absolutiza card_image_url', () async {
+  test('fetchListingsPage manda filtros y absolutiza card_image_url',
+      () async {
     final mock = MockClient((req) async {
       expect(req.url.path, '/admin/listings');
-      expect(req.url.queryParameters, {'status': 'removed', 'q': 'jinx'});
+      expect(req.url.queryParameters,
+          {'status': 'removed', 'q': 'jinx', 'limit': '20'});
       expect(req.headers['Authorization'], 'Bearer tok');
-      return http.Response(jsonEncode([_listingJson()]), 200,
+      return http.Response(
+          jsonEncode({'data': [_listingJson()], 'next_cursor': 'abc'}),
+          200,
           headers: {'content-type': 'application/json'});
     });
-    final items = await (await _repo(mock))
-        .fetchListings(status: 'removed', query: 'jinx');
-    expect(items, hasLength(1));
-    expect(items.first.status, 'removed');
-    expect(items.first.cardImageUrl, 'http://x/card-images/abc.png');
+    final page = await (await _repo(mock))
+        .fetchListingsPage(status: 'removed', query: 'jinx');
+    expect(page.data, hasLength(1));
+    expect(page.data.first.status, 'removed');
+    expect(page.data.first.cardImageUrl, 'http://x/card-images/abc.png');
+    expect(page.nextCursor, 'abc');
   });
 
-  test('fetchListings sin filtros no manda query params', () async {
+  test('fetchListingsPage manda el cursor cuando se pasa', () async {
     final mock = MockClient((req) async {
-      expect(req.url.queryParameters, isEmpty);
-      return http.Response(jsonEncode([]), 200,
+      expect(req.url.queryParameters, {'limit': '20', 'cursor': 'xyz'});
+      return http.Response(jsonEncode({'data': [], 'next_cursor': ''}), 200,
           headers: {'content-type': 'application/json'});
     });
-    await (await _repo(mock)).fetchListings();
+    await (await _repo(mock)).fetchListingsPage(cursor: 'xyz');
   });
 
   test('setListingStatus patchea el estado', () async {
@@ -116,17 +121,20 @@ void main() {
     await (await _repo(mock)).setListingStatus('l1', 'removed');
   });
 
-  test('fetchBuyOrders manda filtros y parsea', () async {
+  test('fetchBuyOrdersPage manda filtros y parsea', () async {
     final mock = MockClient((req) async {
       expect(req.url.path, '/admin/buy-orders');
-      expect(req.url.queryParameters, {'status': 'active', 'q': 'kha'});
-      return http.Response(jsonEncode([_buyOrderJson()]), 200,
+      expect(req.url.queryParameters,
+          {'status': 'active', 'q': 'kha', 'limit': '20'});
+      return http.Response(
+          jsonEncode({'data': [_buyOrderJson()], 'next_cursor': ''}), 200,
           headers: {'content-type': 'application/json'});
     });
-    final items =
-        await (await _repo(mock)).fetchBuyOrders(status: 'active', query: 'kha');
-    expect(items, hasLength(1));
-    expect(items.first.buyerUsername, 'comprador');
+    final page = await (await _repo(mock))
+        .fetchBuyOrdersPage(status: 'active', query: 'kha');
+    expect(page.data, hasLength(1));
+    expect(page.data.first.buyerUsername, 'comprador');
+    expect(page.nextCursor, isNull);
   });
 
   test('setBuyOrderStatus patchea el estado', () async {

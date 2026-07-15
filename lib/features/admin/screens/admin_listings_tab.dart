@@ -35,7 +35,7 @@ class AdminListingsTab extends ConsumerWidget {
           child: itemsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Error: $e')),
-            data: (items) => items.isEmpty
+            data: (state) => state.items.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -48,8 +48,19 @@ class AdminListingsTab extends ConsumerWidget {
                     ),
                   )
                 : ListView.builder(
-                    itemCount: items.length,
-                    itemBuilder: (c, i) => _ListingRow(listing: items[i]),
+                    itemCount:
+                        state.items.length + (state.hasMore ? 1 : 0),
+                    itemBuilder: (c, i) {
+                      if (i == state.items.length) {
+                        Future.microtask(
+                            () => ref.read(adminListingsProvider.notifier).loadMore());
+                        return const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      return _ListingRow(listing: state.items[i]);
+                    },
                   ),
           ),
         ),
