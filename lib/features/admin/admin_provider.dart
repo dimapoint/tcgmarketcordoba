@@ -90,6 +90,40 @@ final adminFeedbackProvider =
   (ref) => ref.watch(adminRepositoryProvider).fetchFeedback(),
 );
 
+final adminUsersQueryProvider = valueStateProvider<String>('');
+
+class AdminUsersNotifier extends AsyncNotifier<PaginatedState<AdminUser>> {
+  @override
+  Future<PaginatedState<AdminUser>> build() async {
+    final query = ref.watch(adminUsersQueryProvider);
+    final page =
+        await ref.watch(adminRepositoryProvider).fetchUsersPage(query: query);
+    return PaginatedState(items: page.data, nextCursor: page.nextCursor);
+  }
+
+  Future<void> loadMore() async {
+    final current = state.value;
+    if (current == null || !current.hasMore || current.isLoadingMore) return;
+
+    state = AsyncData(current.copyWith(isLoadingMore: true));
+    try {
+      final query = ref.read(adminUsersQueryProvider);
+      final page = await ref
+          .read(adminRepositoryProvider)
+          .fetchUsersPage(query: query, cursor: current.nextCursor);
+      state = AsyncData(PaginatedState(
+        items: [...current.items, ...page.data],
+        nextCursor: page.nextCursor,
+      ));
+    } catch (e) {
+      state = AsyncData(current.copyWith(isLoadingMore: false));
+    }
+  }
+}
+
+final adminUsersProvider = AsyncNotifierProvider.autoDispose<AdminUsersNotifier,
+    PaginatedState<AdminUser>>(AdminUsersNotifier.new);
+
 /// Estado del sync de cartas; mientras corre se re-consulta solo cada 3s
 /// (el polling además mantiene viva la máquina de Fly durante la corrida).
 final syncStatusProvider = FutureProvider.autoDispose<SyncStatus>((ref) async {
@@ -129,6 +163,15 @@ class AdminActionsNotifier extends AsyncNotifier<void> {
       () => ref.read(adminRepositoryProvider).startSync(),
     );
     ref.invalidate(syncStatusProvider);
+  }
+
+  Future<void> setUserAdmin(String id, bool isAdmin) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref.read(adminRepositoryProvider).setUserAdmin(id, isAdmin),
+    );
+    ref.invalidate(adminUsersProvider);
+    ref.invalidate(adminStatsProvider);
   }
 }
 

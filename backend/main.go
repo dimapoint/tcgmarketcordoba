@@ -126,6 +126,8 @@ func main() {
 	mux.Handle("PATCH /admin/buy-orders/{id}", requireAdmin(http.HandlerFunc(adminH.PatchBuyOrder)))
 	mux.Handle("POST /admin/sync-cards", requireAdmin(http.HandlerFunc(adminH.StartSync)))
 	mux.Handle("GET /admin/sync-cards", requireAdmin(http.HandlerFunc(adminH.SyncStatus)))
+	mux.Handle("GET /admin/users", requireAdmin(http.HandlerFunc(adminH.ListUsers)))
+	mux.Handle("PATCH /admin/users/{id}", requireAdmin(http.HandlerFunc(adminH.PatchUser)))
 
 	feedbackH := &feedback.Handler{Store: feedback.NewPgStore(pool)}
 	mux.Handle("POST /feedback", requireAuth(http.HandlerFunc(feedbackH.Create)))

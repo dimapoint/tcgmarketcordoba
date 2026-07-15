@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,6 +21,8 @@ type Stats struct {
 type Store interface {
 	IsAdmin(ctx context.Context, userID string) (bool, error)
 	Stats(ctx context.Context) (Stats, error)
+	ListUsers(ctx context.Context, q string, cursorTime *time.Time, cursorID string, limit int) ([]AdminUser, error)
+	SetAdmin(ctx context.Context, id string, isAdmin bool) error
 }
 
 type PgStore struct{ pool *pgxpool.Pool }

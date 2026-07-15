@@ -25,6 +25,39 @@ class AdminStats {
       );
 }
 
+class AdminUser {
+  final String id;
+  final String email;
+  final String username;
+  final String? city;
+  final bool isAdmin;
+  final DateTime createdAt;
+  final int activeListings;
+  final int activeBuyOrders;
+
+  const AdminUser({
+    required this.id,
+    required this.email,
+    required this.username,
+    this.city,
+    required this.isAdmin,
+    required this.createdAt,
+    required this.activeListings,
+    required this.activeBuyOrders,
+  });
+
+  factory AdminUser.fromJson(Map<String, dynamic> json) => AdminUser(
+        id: json['id'] as String,
+        email: json['email'] as String,
+        username: json['username'] as String,
+        city: json['city'] as String?,
+        isAdmin: json['is_admin'] as bool,
+        createdAt: DateTime.parse(json['created_at'] as String),
+        activeListings: json['active_listings'] as int,
+        activeBuyOrders: json['active_buy_orders'] as int,
+      );
+}
+
 class FeedbackItem {
   final String id;
   final String username;

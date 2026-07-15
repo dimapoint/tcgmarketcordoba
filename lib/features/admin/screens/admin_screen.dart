@@ -7,9 +7,11 @@ import 'admin_buy_orders_tab.dart';
 import 'admin_feedback_tab.dart';
 import 'admin_listings_tab.dart';
 import 'admin_summary_tab.dart';
+import 'admin_users_tab.dart';
 
 const _sections = [
   (label: 'Resumen', icon: Icons.dashboard_outlined, body: AdminSummaryTab()),
+  (label: 'Usuarios', icon: Icons.people_outline, body: AdminUsersTab()),
   (label: 'Publicaciones', icon: Icons.storefront_outlined, body: AdminListingsTab()),
   (label: 'Buscados', icon: Icons.manage_search_outlined, body: AdminBuyOrdersTab()),
   (label: 'Feedback', icon: Icons.chat_bubble_outline, body: AdminFeedbackTab()),

@@ -116,6 +116,40 @@ class _FakeAdminRepository implements AdminRepository {
   @override
   Future<SyncStatus> fetchSyncStatus() async =>
       const SyncStatus(status: 'idle');
+
+  final userAdminCalls = <(String, bool)>[];
+
+  @override
+  Future<PaginatedList<AdminUser>> fetchUsersPage(
+      {String query = '', String? cursor, int limit = 20}) async {
+    return PaginatedList(data: [
+      AdminUser(
+        id: 'u1',
+        email: 'a@b.com',
+        username: 'yo_mismo',
+        city: 'Córdoba',
+        isAdmin: true,
+        createdAt: DateTime.utc(2026, 7, 1),
+        activeListings: 1,
+        activeBuyOrders: 0,
+      ),
+      AdminUser(
+        id: 'u2',
+        email: 'otro@x.com',
+        username: 'otro',
+        city: 'Córdoba',
+        isAdmin: false,
+        createdAt: DateTime.utc(2026, 7, 2),
+        activeListings: 0,
+        activeBuyOrders: 2,
+      ),
+    ]);
+  }
+
+  @override
+  Future<void> setUserAdmin(String id, bool isAdmin) async {
+    userAdminCalls.add((id, isAdmin));
+  }
 }
 
 AuthSession _session({required bool isAdmin}) => AuthSession(
@@ -203,6 +237,34 @@ void main() {
 
     final state = container.read(adminListingsProvider).value!;
     expect(state.items, hasLength(2)); // página inicial + la cargada de más
+  });
+
+  testWidgets(
+      'tab Usuarios: lista con contadores, fila propia sin toggle, otra fila pide confirmación',
+      (tester) async {
+    final (container, widget, repo) = _harness();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Usuarios').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('yo_mismo'), findsOneWidget);
+    expect(find.text('otro'), findsOneWidget);
+
+    // Fila propia: el botón de cambiar rol está deshabilitado.
+    final selfButton = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'Quitar admin'));
+    expect(selfButton.onPressed, isNull);
+
+    // Fila ajena: pide confirmación antes de llamar al repo.
+    await tester.tap(find.widgetWithText(TextButton, 'Hacer admin'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cambiar rol'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirmar'));
+    await tester.pumpAndSettle();
+    expect(repo.userAdminCalls, [('u2', true)]);
   });
 
   testWidgets('en pantalla angosta muestra TabBar en vez de NavigationRail',

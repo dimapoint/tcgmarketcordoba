@@ -18,6 +18,9 @@ abstract class AdminRepository {
   Future<void> startSync();
   Future<SyncStatus> fetchSyncStatus();
   Future<List<FeedbackItem>> fetchFeedback();
+  Future<PaginatedList<AdminUser>> fetchUsersPage(
+      {String query = '', String? cursor, int limit = 20});
+  Future<void> setUserAdmin(String id, bool isAdmin);
 }
 
 class ApiAdminRepository implements AdminRepository {
@@ -82,6 +85,24 @@ class ApiAdminRepository implements AdminRepository {
         .map((j) => FeedbackItem.fromJson(j as Map<String, dynamic>))
         .toList();
   }
+
+  @override
+  Future<PaginatedList<AdminUser>> fetchUsersPage(
+      {String query = '', String? cursor, int limit = 20}) async {
+    final data = await _api.get('/admin/users', auth: true, query: {
+      if (query.isNotEmpty) 'q': query,
+      'limit': limit.toString(),
+      if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+    });
+    return PaginatedList.fromJson(
+      data as Map<String, dynamic>,
+      (j) => AdminUser.fromJson(j),
+    );
+  }
+
+  @override
+  Future<void> setUserAdmin(String id, bool isAdmin) =>
+      _api.patch('/admin/users/$id', auth: true, body: {'is_admin': isAdmin});
 
   Map<String, String> _pageParams(
       String status, String query, String? cursor, int limit) {

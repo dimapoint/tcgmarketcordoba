@@ -14,6 +14,12 @@ import (
 type fakeStore struct {
 	admins map[string]bool
 	stats  Stats
+
+	users         []AdminUser
+	gotUserQuery  string
+	gotUserCursor *time.Time
+	gotUserID     string
+	gotUserLimit  int
 }
 
 func (f *fakeStore) IsAdmin(_ context.Context, userID string) (bool, error) {
@@ -22,6 +28,25 @@ func (f *fakeStore) IsAdmin(_ context.Context, userID string) (bool, error) {
 
 func (f *fakeStore) Stats(_ context.Context) (Stats, error) {
 	return f.stats, nil
+}
+
+func (f *fakeStore) ListUsers(_ context.Context, q string, cursorTime *time.Time, cursorID string, limit int) ([]AdminUser, error) {
+	f.gotUserQuery = q
+	f.gotUserCursor = cursorTime
+	f.gotUserID = cursorID
+	f.gotUserLimit = limit
+	return f.users, nil
+}
+
+func (f *fakeStore) SetAdmin(_ context.Context, id string, isAdmin bool) error {
+	for i := range f.users {
+		if f.users[i].ID == id {
+			f.users[i].IsAdmin = isAdmin
+			f.admins[id] = isAdmin
+			return nil
+		}
+	}
+	return ErrUserNotFound
 }
 
 var testTokens = auth.TokenIssuer{Secret: []byte("test-secret"), TTL: time.Minute}
@@ -56,7 +81,7 @@ func TestStatsForbiddenForNonAdmin(t *testing.T) {
 	store := &fakeStore{admins: map[string]bool{}}
 	h := &Handler{Store: store}
 	rec := httptest.NewRecorder()
-	protect(store, h.Stats).ServeHTTP(rec, authedReq(t, "GET", "/admin/stats","user-1"))
+	protect(store, h.Stats).ServeHTTP(rec, authedReq(t, "GET", "/admin/stats", "user-1"))
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("code = %d, want 403, body = %s", rec.Code, rec.Body)
 	}
@@ -81,7 +106,7 @@ func TestStatsOKForAdmin(t *testing.T) {
 	}
 	h := &Handler{Store: store}
 	rec := httptest.NewRecorder()
-	protect(store, h.Stats).ServeHTTP(rec, authedReq(t, "GET", "/admin/stats","admin-1"))
+	protect(store, h.Stats).ServeHTTP(rec, authedReq(t, "GET", "/admin/stats", "admin-1"))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body)
 	}

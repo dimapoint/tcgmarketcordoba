@@ -175,4 +175,45 @@ void main() {
     expect(status.finishedAt, isNotNull);
     expect(status.error, isNull);
   });
+
+  test('fetchUsersPage manda query y parsea usuarios', () async {
+    final mock = MockClient((req) async {
+      expect(req.url.path, '/admin/users');
+      expect(req.url.queryParameters, {'q': 'ana', 'limit': '20'});
+      return http.Response(
+          jsonEncode({
+            'data': [
+              {
+                'id': 'u1',
+                'email': 'ana@x.com',
+                'username': 'ana',
+                'city': 'Córdoba',
+                'is_admin': false,
+                'created_at': '2026-07-08T00:00:00Z',
+                'active_listings': 2,
+                'active_buy_orders': 1,
+              }
+            ],
+            'next_cursor': '',
+          }),
+          200,
+          headers: {'content-type': 'application/json'});
+    });
+    final page = await (await _repo(mock)).fetchUsersPage(query: 'ana');
+    expect(page.data, hasLength(1));
+    expect(page.data.first.username, 'ana');
+    expect(page.data.first.city, 'Córdoba');
+    expect(page.data.first.activeListings, 2);
+    expect(page.nextCursor, isNull);
+  });
+
+  test('setUserAdmin patchea is_admin', () async {
+    final mock = MockClient((req) async {
+      expect(req.method, 'PATCH');
+      expect(req.url.path, '/admin/users/u1');
+      expect(jsonDecode(req.body), {'is_admin': true});
+      return http.Response('', 204);
+    });
+    await (await _repo(mock)).setUserAdmin('u1', true);
+  });
 }
