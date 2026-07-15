@@ -6,18 +6,22 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (Color bg, Color fg) = switch (status) {
-      'active' => (Colors.green.shade100, Colors.green.shade900),
-      'removed' => (Colors.red.shade100, Colors.red.shade900),
-      'sold' || 'fulfilled' => (Colors.blue.shade100, Colors.blue.shade900),
-      _ => (Colors.grey.shade200, Colors.grey.shade800),
+    final scheme = Theme.of(context).colorScheme;
+    final (String label, Color bg, Color fg) = switch (status) {
+      'active' => ('Activa', scheme.primaryContainer, scheme.onPrimaryContainer),
+      'removed' => ('Eliminada', scheme.errorContainer, scheme.onErrorContainer),
+      'sold' => ('Vendida', scheme.secondaryContainer, scheme.onSecondaryContainer),
+      'fulfilled' =>
+        ('Cumplida', scheme.secondaryContainer, scheme.onSecondaryContainer),
+      _ => (status, scheme.surfaceContainerHighest, scheme.onSurfaceVariant),
     };
 
     return Chip(
-      label: Text(status),
+      label: Text(label),
       backgroundColor: bg,
       labelStyle: TextStyle(color: fg, fontWeight: FontWeight.bold),
       side: BorderSide.none,
+      visualDensity: VisualDensity.compact,
     );
   }
 }

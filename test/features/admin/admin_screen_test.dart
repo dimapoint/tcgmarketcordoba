@@ -175,7 +175,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Quitar pide confirmación; cancelar no llama al repo.
-    expect(find.text('Confirmar acción'), findsOneWidget);
+    expect(find.text('Quitar publicación'), findsOneWidget);
     await tester.tap(find.text('Cancelar'));
     await tester.pumpAndSettle();
     expect(repo.listingCalls, isEmpty);
@@ -203,6 +203,21 @@ void main() {
 
     final state = container.read(adminListingsProvider).value!;
     expect(state.items, hasLength(2)); // página inicial + la cargada de más
+  });
+
+  testWidgets('en pantalla angosta muestra TabBar en vez de NavigationRail',
+      (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final (container, widget, _) = _harness();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(widget);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TabBar), findsOneWidget);
+    expect(find.byType(NavigationRail), findsNothing);
   });
 
   testWidgets('restaura un buscado eliminado', (tester) async {

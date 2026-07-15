@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/models/listing.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/error_state.dart';
+import '../../../shared/widgets/skeleton.dart';
 import '../admin_provider.dart';
 import '../widgets/admin_filter_bar.dart';
-import '../widgets/status_badge.dart';
+import '../widgets/moderation_row.dart';
 
 const _statusFilters = [
   ('', 'Todas'),
@@ -33,66 +36,44 @@ class AdminListingsTab extends ConsumerWidget {
         ),
         Expanded(
           child: itemsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Error: $e')),
+            loading: () => const WantedListSkeleton(),
+            error: (e, _) =>
+                ErrorState(onRetry: () => ref.invalidate(adminListingsProvider)),
             data: (state) => state.items.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.inbox_outlined,
-                            size: 64, color: Theme.of(context).colorScheme.outline),
-                        const SizedBox(height: 16),
-                        const Text('Sin resultados', style: TextStyle(fontSize: 16)),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount:
-                        state.items.length + (state.hasMore ? 1 : 0),
-                    itemBuilder: (c, i) {
-                      if (i == state.items.length) {
-                        Future.microtask(
-                            () => ref.read(adminListingsProvider.notifier).loadMore());
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(child: CircularProgressIndicator()),
+                ? const EmptyState(
+                    icon: Icons.inbox_outlined, message: 'Sin resultados')
+                : RefreshIndicator(
+                    onRefresh: () async => ref.invalidate(adminListingsProvider),
+                    child: ListView.builder(
+                      itemCount: state.items.length + (state.hasMore ? 1 : 0),
+                      itemBuilder: (c, i) {
+                        if (i == state.items.length) {
+                          Future.microtask(() =>
+                              ref.read(adminListingsProvider.notifier).loadMore());
+                          return const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        final listing = state.items[i];
+                        return ModerationRow(
+                          imageUrl: listing.cardImageThumb(96),
+                          cardName: listing.cardName,
+                          condition: listing.condition,
+                          username: listing.sellerUsername,
+                          city: listing.sellerCity,
+                          price: listing.price,
+                          createdAt: listing.createdAt,
+                          status: listing.status,
+                          onToggle: () => _confirmToggleStatus(
+                              context, ref, listing.id, listing.status),
                         );
-                      }
-                      return _ListingRow(listing: state.items[i]);
-                    },
+                      },
+                    ),
                   ),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _ListingRow extends ConsumerWidget {
-  final Listing listing;
-  const _ListingRow({required this.listing});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isRemoved = listing.status == 'removed';
-    return ListTile(
-      leading: const CircleAvatar(child: Icon(Icons.style)),
-      title: Text(listing.cardName),
-      subtitle:
-          Text('${listing.sellerUsername} · \$${listing.price.toStringAsFixed(0)}'),
-      trailing: Wrap(
-        spacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          StatusBadge(status: listing.status),
-          TextButton(
-            onPressed: () => _confirmToggleStatus(
-                context, ref, listing.id, listing.status),
-            child: Text(isRemoved ? 'Restaurar' : 'Quitar'),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -109,29 +90,14 @@ Future<void> _confirmToggleStatus(
     return;
   }
 
-  final confirm = await showDialog<bool>(
-    context: context,
-    builder: (c) => AlertDialog(
-      title: const Text('Confirmar acción'),
-      content: const Text('¿Seguro que deseas quitar esta publicación?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(c, false),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(c, true),
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-            foregroundColor: Theme.of(context).colorScheme.onError,
-          ),
-          child: const Text('Quitar'),
-        ),
-      ],
-    ),
+  final confirm = await confirmDestructive(
+    context,
+    title: 'Quitar publicación',
+    message: '¿Seguro que deseas quitar esta publicación?',
+    confirmLabel: 'Quitar',
   );
 
-  if (confirm == true) {
+  if (confirm) {
     ref.read(adminActionsProvider.notifier).setListingStatus(id, 'removed');
   }
 }

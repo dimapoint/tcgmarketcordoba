@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/models/wanted_order.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/error_state.dart';
+import '../../../shared/widgets/skeleton.dart';
 import '../admin_provider.dart';
 import '../widgets/admin_filter_bar.dart';
-import '../widgets/status_badge.dart';
+import '../widgets/moderation_row.dart';
 
 const _statusFilters = [
   ('', 'Todas'),
@@ -33,66 +36,46 @@ class AdminBuyOrdersTab extends ConsumerWidget {
         ),
         Expanded(
           child: itemsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Error: $e')),
+            loading: () => const WantedListSkeleton(),
+            error: (e, _) => ErrorState(
+                onRetry: () => ref.invalidate(adminBuyOrdersProvider)),
             data: (state) => state.items.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.inbox_outlined,
-                            size: 64, color: Theme.of(context).colorScheme.outline),
-                        const SizedBox(height: 16),
-                        const Text('Sin resultados', style: TextStyle(fontSize: 16)),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount:
-                        state.items.length + (state.hasMore ? 1 : 0),
-                    itemBuilder: (c, i) {
-                      if (i == state.items.length) {
-                        Future.microtask(() =>
-                            ref.read(adminBuyOrdersProvider.notifier).loadMore());
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(child: CircularProgressIndicator()),
+                ? const EmptyState(
+                    icon: Icons.inbox_outlined, message: 'Sin resultados')
+                : RefreshIndicator(
+                    onRefresh: () async => ref.invalidate(adminBuyOrdersProvider),
+                    child: ListView.builder(
+                      itemCount: state.items.length + (state.hasMore ? 1 : 0),
+                      itemBuilder: (c, i) {
+                        if (i == state.items.length) {
+                          Future.microtask(() => ref
+                              .read(adminBuyOrdersProvider.notifier)
+                              .loadMore());
+                          return const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        final order = state.items[i];
+                        return ModerationRow(
+                          imageUrl: order.cardImageThumb(96),
+                          cardName: order.cardName,
+                          condition: order.minCondition,
+                          username: order.buyerUsername,
+                          city: order.buyerCity,
+                          price: order.maxPrice,
+                          priceLabel: 'hasta',
+                          createdAt: order.createdAt,
+                          status: order.status,
+                          onToggle: () => _confirmToggleStatus(
+                              context, ref, order.id, order.status),
                         );
-                      }
-                      return _BuyOrderRow(order: state.items[i]);
-                    },
+                      },
+                    ),
                   ),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _BuyOrderRow extends ConsumerWidget {
-  final WantedOrder order;
-  const _BuyOrderRow({required this.order});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isRemoved = order.status == 'removed';
-    return ListTile(
-      leading: const CircleAvatar(child: Icon(Icons.manage_search)),
-      title: Text(order.cardName),
-      subtitle: Text(
-          '${order.buyerUsername} · hasta \$${order.maxPrice.toStringAsFixed(0)}'),
-      trailing: Wrap(
-        spacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          StatusBadge(status: order.status),
-          TextButton(
-            onPressed: () =>
-                _confirmToggleStatus(context, ref, order.id, order.status),
-            child: Text(isRemoved ? 'Restaurar' : 'Quitar'),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -109,29 +92,14 @@ Future<void> _confirmToggleStatus(
     return;
   }
 
-  final confirm = await showDialog<bool>(
-    context: context,
-    builder: (c) => AlertDialog(
-      title: const Text('Confirmar acción'),
-      content: const Text('¿Seguro que deseas quitar este buscado?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(c, false),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(c, true),
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-            foregroundColor: Theme.of(context).colorScheme.onError,
-          ),
-          child: const Text('Quitar'),
-        ),
-      ],
-    ),
+  final confirm = await confirmDestructive(
+    context,
+    title: 'Quitar buscado',
+    message: '¿Seguro que deseas quitar este buscado?',
+    confirmLabel: 'Quitar',
   );
 
-  if (confirm == true) {
+  if (confirm) {
     ref.read(adminActionsProvider.notifier).setBuyOrderStatus(id, 'removed');
   }
 }

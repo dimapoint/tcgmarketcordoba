@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/format/relative_time.dart';
+import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/error_state.dart';
+import '../../../shared/widgets/skeleton.dart';
 import '../admin_models.dart';
 import '../admin_provider.dart';
 
@@ -11,21 +15,12 @@ class AdminFeedbackTab extends ConsumerWidget {
     final itemsAsync = ref.watch(adminFeedbackProvider);
 
     return itemsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      loading: () => const WantedListSkeleton(),
+      error: (e, _) =>
+          ErrorState(onRetry: () => ref.invalidate(adminFeedbackProvider)),
       data: (items) => items.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.inbox_outlined,
-                      size: 64, color: Theme.of(context).colorScheme.outline),
-                  const SizedBox(height: 16),
-                  const Text('Sin mensajes todavía',
-                      style: TextStyle(fontSize: 16)),
-                ],
-              ),
-            )
+          ? const EmptyState(
+              icon: Icons.inbox_outlined, message: 'Sin mensajes todavía')
           : ListView.builder(
               padding: const EdgeInsets.all(8),
               itemCount: items.length,
@@ -41,18 +36,20 @@ class _FeedbackRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final (Color bg, Color fg, IconData icon) = switch (item.category) {
-      'bug' => (Colors.red.shade100, Colors.red.shade900, Icons.bug_report),
+      'bug' => (scheme.errorContainer, scheme.onErrorContainer, Icons.bug_report),
       'sugerencia' => (
-          Colors.amber.shade100,
-          Colors.amber.shade900,
+          scheme.tertiaryContainer,
+          scheme.onTertiaryContainer,
           Icons.lightbulb
         ),
-      _ => (Colors.grey.shade200, Colors.grey.shade800, Icons.chat_bubble),
+      _ => (
+          scheme.surfaceContainerHighest,
+          scheme.onSurfaceVariant,
+          Icons.chat_bubble
+        ),
     };
-    final d = item.createdAt.toLocal();
-    final date = '${d.day.toString().padLeft(2, '0')}/'
-        '${d.month.toString().padLeft(2, '0')}/${d.year}';
 
     return Card(
       child: ListTile(
@@ -63,7 +60,7 @@ class _FeedbackRow extends StatelessWidget {
         title: Text(item.message),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Text('${item.username} · $date'),
+          child: Text('${item.username} · ${relativeTime(item.createdAt)}'),
         ),
         trailing: Chip(
           label: Text(item.category),
