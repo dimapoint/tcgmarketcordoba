@@ -1,100 +1,32 @@
-# syntax=docker/dockerfile:1.7
+# Imagen de producción para Fly.io: binario Go + build web de Flutter.
+# El build web se genera ANTES con deploy.ps1 (flutter build web) y acá
+# solo se copia — buildear Flutter dentro de Docker requiere el SDK (~2 GB).
 
-################################################################################
-# Stage 1 - Build Flutter Web
-################################################################################
+# ── Stage 1: build del backend ───────────────────────────────────────────────
+FROM golang:1.26-alpine AS builder
 
-FROM debian:bookworm AS flutter-builder
-
-ENV DEBIAN_FRONTEND=noninteractive
-ENV FLUTTER_VERSION=3.44.6
-ENV FLUTTER_HOME=/opt/flutter
-ENV PATH="${FLUTTER_HOME}/bin:${FLUTTER_HOME}/bin/cache/dart-sdk/bin:${PATH}"
-
-RUN apt-get update && apt-get install -y \
-    curl \
-    unzip \
-    xz-utils \
-    git \
-    ca-certificates \
-    zip \
-    libglu1-mesa \
- && rm -rf /var/lib/apt/lists/*
-
-# Descargar el SDK oficial de Flutter
-RUN curl -L \
-    "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
-    -o flutter.tar.xz
-
-RUN mkdir -p /opt \
- && tar -xf flutter.tar.xz -C /opt \
- && rm flutter.tar.xz
-
-RUN flutter config --no-analytics
-RUN flutter doctor -v
+RUN apk --no-cache add ca-certificates tzdata
 
 WORKDIR /app
 
-# Cache de dependencias
-COPY pubspec.yaml .
-COPY pubspec.lock .
-
-RUN --mount=type=cache,target=/root/.pub-cache \
-    flutter pub get
-
-# Copiar el proyecto
-COPY . .
-
-# Build Flutter Web
-RUN flutter build web --release --base-href /
-
-################################################################################
-# Stage 2 - Build Go API
-################################################################################
-
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS go-builder
-
-RUN apk add --no-cache ca-certificates tzdata
-
-WORKDIR /src
-
 COPY backend/go.mod backend/go.sum ./
-
-RUN --mount=type=cache,target=/root/.cache/go/pkg/mod \
-    go mod download
+RUN go mod download && go mod verify
 
 COPY backend/ .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -trimpath -ldflags="-s -w" -o /out/api .
 
-ARG TARGETARCH
-
-RUN --mount=type=cache,target=/root/.cache/go/build \
-    CGO_ENABLED=0 \
-    GOOS=linux \
-    GOARCH=${TARGETARCH:-amd64} \
-    go build \
-      -trimpath \
-      -ldflags="-s -w -extldflags '-static'" \
-      -o /api \
-      ./main.go
-
-################################################################################
-# Stage 3 - Runtime
-################################################################################
-
-FROM busybox:musl AS busybox
-
+# ── Stage 2: run ─────────────────────────────────────────────────────────────
 FROM scratch
 
-COPY --from=go-builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=go-builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
-COPY --from=busybox /bin/sh /bin/sh
-COPY --from=busybox /bin/wget /bin/wget
+USER 65534:65534
 
-COPY --from=go-builder /api /api
-COPY --from=flutter-builder /app/build/web /web
+COPY --from=builder /out/api /api
+COPY build/web /web
 
-ENV PORT=8080
 ENV WEB_DIR=/web
 
 EXPOSE 8080
