@@ -1,6 +1,7 @@
 # Imagen de producción para Fly.io: binario Go + build web de Flutter.
-# El build web se genera ANTES con deploy.ps1 (flutter build web) y acá
-# solo se copia — buildear Flutter dentro de Docker requiere el SDK (~2 GB).
+# El build web se genera ANTES con deploy.ps1 (flutter build web --release
+# con API_URL de prod) y acá solo se copia. No pases API_URL como build-arg:
+# el Dockerfile no lo usa; va embebido en build/web/assets/.env.
 
 # ── Stage 1: build del backend ───────────────────────────────────────────────
 FROM golang:1.26-alpine AS builder
