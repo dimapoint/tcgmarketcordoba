@@ -20,12 +20,12 @@ class WantedDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final orderAsync = ref.watch(wantedDetailProvider(id));
-    final session = ref.watch(authSessionProvider).valueOrNull;
+    final session = ref.watch(authSessionProvider).value;
 
     return Scaffold(
       appBar: AppBar(
         actions: [
-          if (orderAsync.valueOrNull != null)
+          if (orderAsync.value != null)
             IconButton(
               icon: const Icon(Icons.share_outlined),
               tooltip: 'Compartir',

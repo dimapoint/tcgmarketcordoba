@@ -7,7 +7,7 @@ import 'matches_repository.dart';
 /// No es autoDispose: la nav lo observa durante toda la sesión. Se invalida
 /// al marcar visto (al abrir Busco).
 final unseenMatchesProvider = FutureProvider<int>((ref) async {
-  final session = ref.watch(authSessionProvider).valueOrNull;
+  final session = ref.watch(authSessionProvider).value;
   if (session == null) return 0;
   return ref.watch(matchesRepositoryProvider).unseenCount();
 });
@@ -16,7 +16,7 @@ final unseenMatchesProvider = FutureProvider<int>((ref) async {
 /// aparecieron después de la última visita a Busco.
 final newMatchesProvider =
     FutureProvider.autoDispose<List<MatchItem>>((ref) async {
-  final session = ref.watch(authSessionProvider).valueOrNull;
+  final session = ref.watch(authSessionProvider).value;
   if (session == null) return const [];
   final all = await ref.watch(matchesRepositoryProvider).fetchMatches();
   return all.where((m) => m.isNew).toList();

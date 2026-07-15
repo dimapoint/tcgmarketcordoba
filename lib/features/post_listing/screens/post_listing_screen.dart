@@ -173,7 +173,7 @@ class _CardSearchStep extends ConsumerWidget {
           child: SearchBar(
             hintText: 'Buscar carta (ej: Jinx)...',
             onChanged: (v) =>
-                ref.read(cardSearchQueryProvider.notifier).state = v,
+                ref.read(cardSearchQueryProvider.notifier).set(v),
             leading: const Icon(Icons.search),
           ),
         ),

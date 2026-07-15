@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/models/card_printing.dart';
+import '../../shared/state/value_state.dart';
 import '../post_listing/card_repository.dart';
 
 class PostWantedForm {
@@ -67,7 +68,7 @@ final postWantedFormProvider =
 
 // Reutiliza la búsqueda de cartas de post_listing: mismo CardRepository,
 // mismo debounce por query — no tiene sentido duplicarla.
-final wantedCardSearchQueryProvider = StateProvider<String>((ref) => '');
+final wantedCardSearchQueryProvider = valueStateProvider<String>('');
 
 final wantedCardSearchResultsProvider =
     FutureProvider.autoDispose<List<CardPrinting>>((ref) {

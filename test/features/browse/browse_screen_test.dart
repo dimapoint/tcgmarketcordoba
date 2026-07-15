@@ -92,7 +92,7 @@ void main() {
     await tester.pumpWidget(widget);
     await tester.pumpAndSettle();
 
-    container.read(searchQueryProvider.notifier).state = 'jinx';
+    container.read(searchQueryProvider.notifier).set('jinx');
     await tester.pumpAndSettle();
 
     expect(find.text('No hay publicaciones de "jinx"'), findsOneWidget);
@@ -110,7 +110,7 @@ void main() {
     await tester.pumpWidget(widget);
     await tester.pumpAndSettle();
 
-    container.read(searchQueryProvider.notifier).state = 'jinx';
+    container.read(searchQueryProvider.notifier).set('jinx');
     await tester.pumpAndSettle();
 
     final secondary = find.text('Vendela vos');
@@ -156,7 +156,7 @@ void main() {
 
     await tester.tap(find.text('Se busca'));
     await tester.pumpAndSettle();
-    container.read(searchQueryProvider.notifier).state = 'jinx';
+    container.read(searchQueryProvider.notifier).set('jinx');
     await tester.pumpAndSettle();
 
     expect(find.text('Nadie está buscando "jinx" todavía'), findsOneWidget);

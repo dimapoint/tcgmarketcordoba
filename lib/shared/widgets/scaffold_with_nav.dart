@@ -41,7 +41,7 @@ class ScaffoldWithNav extends ConsumerWidget {
     final index = _indexOf(location);
     final isWide =
         MediaQuery.sizeOf(context).width >= AppTheme.mobileBreakpoint;
-    final unseen = ref.watch(unseenMatchesProvider).valueOrNull ?? 0;
+    final unseen = ref.watch(unseenMatchesProvider).value ?? 0;
 
     if (isWide) {
       return Scaffold(

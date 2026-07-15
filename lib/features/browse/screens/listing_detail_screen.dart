@@ -19,12 +19,12 @@ class ListingDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final listingAsync = ref.watch(listingDetailProvider(id));
-    final session = ref.watch(authSessionProvider).valueOrNull;
+    final session = ref.watch(authSessionProvider).value;
 
     return Scaffold(
       appBar: AppBar(
         actions: [
-          if (listingAsync.valueOrNull != null)
+          if (listingAsync.value != null)
             IconButton(
               icon: const Icon(Icons.share_outlined),
               tooltip: 'Compartir',

@@ -32,8 +32,9 @@ class _PostWantedScreenState extends ConsumerState<PostWantedScreen> {
     // puede mutar un provider durante el build del árbol.
     Future.microtask(() {
       if (!mounted) return;
-      ref.read(wantedCardSearchQueryProvider.notifier).state =
-          widget.initialQuery ?? '';
+      ref
+          .read(wantedCardSearchQueryProvider.notifier)
+          .set(widget.initialQuery ?? '');
     });
   }
 
@@ -215,7 +216,7 @@ class _CardSearchStepState extends ConsumerState<_CardSearchStep> {
             controller: _searchCtrl,
             hintText: 'Buscar carta (ej: Jinx)...',
             onChanged: (v) =>
-                ref.read(wantedCardSearchQueryProvider.notifier).state = v,
+                ref.read(wantedCardSearchQueryProvider.notifier).set(v),
             leading: const Icon(Icons.search),
           ),
         ),

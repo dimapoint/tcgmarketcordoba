@@ -11,7 +11,7 @@ class AdminScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.watch(authSessionProvider).valueOrNull;
+    final session = ref.watch(authSessionProvider).value;
     final isAdmin = session?.user.isAdmin ?? false;
 
     return DefaultTabController(
@@ -75,7 +75,7 @@ class _SummaryTab extends ConsumerWidget {
                 FilledButton.icon(
                   icon: const Icon(Icons.sync),
                   label: const Text('Sincronizar cartas'),
-                  onPressed: (syncAsync.valueOrNull?.isRunning ?? false) ||
+                  onPressed: (syncAsync.value?.isRunning ?? false) ||
                           actions.isLoading
                       ? null
                       : () => ref

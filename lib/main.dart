@@ -27,6 +27,9 @@ Future<void> main() async {
   final onboardingStore = OnboardingStore(prefs);
 
   runApp(ProviderScope(
+    // Riverpod 3 reintenta providers fallidos con backoff; acá un error debe
+    // quedar en pantalla (y no re-pegarle al API) como en Riverpod 2.
+    retry: (retryCount, error) => null,
     overrides: [
       apiClientProvider.overrideWithValue(api),
       onboardingStoreProvider.overrideWithValue(onboardingStore),

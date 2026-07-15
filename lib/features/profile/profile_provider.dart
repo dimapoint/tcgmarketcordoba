@@ -28,7 +28,7 @@ class ProfileActionsNotifier extends AsyncNotifier<void> {
   Future<void> build() async {}
 
   Future<void> updateUsername(String username) async {
-    final session = ref.read(authSessionProvider).valueOrNull;
+    final session = ref.read(authSessionProvider).value;
     if (session == null) return;
     state = const AsyncLoading();
     state = await AsyncValue.guard(
@@ -41,7 +41,7 @@ class ProfileActionsNotifier extends AsyncNotifier<void> {
   }
 
   Future<void> updateCity(String cityId) async {
-    final session = ref.read(authSessionProvider).valueOrNull;
+    final session = ref.read(authSessionProvider).value;
     if (session == null) return;
     state = const AsyncLoading();
     state = await AsyncValue.guard(
@@ -54,7 +54,7 @@ class ProfileActionsNotifier extends AsyncNotifier<void> {
   }
 
   Future<void> upsertContact(String type, String value) async {
-    final session = ref.read(authSessionProvider).valueOrNull;
+    final session = ref.read(authSessionProvider).value;
     if (session == null) return;
     state = const AsyncLoading();
     state = await AsyncValue.guard(

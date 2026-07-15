@@ -6,7 +6,7 @@ import 'wanted_repository.dart';
 
 /// Comparte el buscador de Explorar: el tablero "Se busca" filtra con la
 /// misma query que la grilla de "En venta".
-class WantedOrdersNotifier extends AutoDisposeAsyncNotifier<PaginatedState<WantedOrder>> {
+class WantedOrdersNotifier extends AsyncNotifier<PaginatedState<WantedOrder>> {
   @override
   Future<PaginatedState<WantedOrder>> build() async {
     final query = ref.watch(searchQueryProvider);
@@ -15,7 +15,7 @@ class WantedOrdersNotifier extends AutoDisposeAsyncNotifier<PaginatedState<Wante
   }
 
   Future<void> loadMore() async {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null || !current.hasMore || current.isLoadingMore) return;
 
     state = AsyncData(current.copyWith(isLoadingMore: true));

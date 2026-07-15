@@ -21,7 +21,7 @@ class PriceReferenceHint extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(priceReferenceProvider(printingId));
-    final reference = async.valueOrNull;
+    final reference = async.value;
     if (reference == null || !reference.hasData) {
       return const SizedBox.shrink();
     }

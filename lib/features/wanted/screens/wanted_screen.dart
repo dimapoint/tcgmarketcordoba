@@ -23,7 +23,7 @@ class WantedScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.watch(authSessionProvider).valueOrNull;
+    final session = ref.watch(authSessionProvider).value;
     final isWide =
         MediaQuery.sizeOf(context).width >= AppTheme.mobileBreakpoint;
 
@@ -92,7 +92,7 @@ class _MyWantedList extends ConsumerWidget {
     // la sección queda visible durante esta visita (newMatchesProvider es
     // autoDispose y recién se refetchea al volver a entrar a la pantalla).
     ref.listen(newMatchesProvider, (_, next) {
-      final matches = next.valueOrNull;
+      final matches = next.value;
       if (matches == null || matches.isEmpty) return;
       () async {
         try {
@@ -107,7 +107,7 @@ class _MyWantedList extends ConsumerWidget {
 
     final orders = ref.watch(myWantedProvider('active'));
     final newMatches =
-        ref.watch(newMatchesProvider).valueOrNull ?? const <MatchItem>[];
+        ref.watch(newMatchesProvider).value ?? const <MatchItem>[];
 
     return orders.when(
       loading: () => const Center(child: CircularProgressIndicator()),

@@ -72,7 +72,7 @@ void main() {
     final container = _container();
     addTearDown(container.dispose);
     // Texto residual de una visita anterior (el provider no es autoDispose).
-    container.read(wantedCardSearchQueryProvider.notifier).state = 'viejo';
+    container.read(wantedCardSearchQueryProvider.notifier).set('viejo');
 
     await tester.pumpWidget(_harness(container, const PostWantedScreen()));
     await tester.pumpAndSettle();

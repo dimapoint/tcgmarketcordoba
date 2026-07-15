@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/models/listing.dart';
 import '../../shared/models/wanted_order.dart';
+import '../../shared/state/value_state.dart';
 import 'admin_models.dart';
 import 'admin_repository.dart';
 
@@ -12,7 +13,7 @@ final adminStatsProvider = FutureProvider.autoDispose<AdminStats>(
 );
 
 final adminListingsFilterProvider =
-    StateProvider<AdminFilter>((ref) => (status: '', query: ''));
+    valueStateProvider<AdminFilter>((status: '', query: ''));
 
 final adminListingsProvider =
     FutureProvider.autoDispose<List<Listing>>((ref) {
@@ -23,7 +24,7 @@ final adminListingsProvider =
 });
 
 final adminBuyOrdersFilterProvider =
-    StateProvider<AdminFilter>((ref) => (status: '', query: ''));
+    valueStateProvider<AdminFilter>((status: '', query: ''));
 
 final adminBuyOrdersProvider =
     FutureProvider.autoDispose<List<WantedOrder>>((ref) {

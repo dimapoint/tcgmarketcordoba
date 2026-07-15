@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
 import '../../shared/models/card_printing.dart';
+import '../../shared/state/value_state.dart';
 import 'card_repository.dart';
 import 'photo_repository.dart';
 import 'post_listing_repository.dart';
@@ -151,7 +152,7 @@ final postListingSubmitProvider =
   PostListingSubmitNotifier.new,
 );
 
-final cardSearchQueryProvider = StateProvider<String>((ref) => '');
+final cardSearchQueryProvider = valueStateProvider<String>('');
 
 final cardSearchResultsProvider =
     FutureProvider.autoDispose<List<CardPrinting>>((ref) {

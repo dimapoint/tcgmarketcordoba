@@ -55,6 +55,9 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
+    // Riverpod 3 pausa providers sin listeners: sin esto el stream no arranca
+    // y el .future no se resuelve nunca.
+    container.listen(authSessionProvider, (_, _) {});
     final session = await container.read(authSessionProvider.future);
     expect(session, isNull);
   });

@@ -13,7 +13,7 @@ class ProfileScreen extends ConsumerWidget {
     final profileAsync = ref.watch(profileProvider);
     final contactsAsync = ref.watch(contactMethodsProvider);
     final isAdmin =
-        ref.watch(authSessionProvider).valueOrNull?.user.isAdmin ?? false;
+        ref.watch(authSessionProvider).value?.user.isAdmin ?? false;
 
     return Scaffold(
       body: SafeArea(

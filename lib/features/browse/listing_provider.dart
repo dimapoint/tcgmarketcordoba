@@ -2,17 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_provider.dart';
 import '../../core/api/paginated.dart';
 import '../../shared/models/listing.dart';
+import '../../shared/state/value_state.dart';
 import 'listing_repository.dart';
 
-final searchQueryProvider = StateProvider<String>((ref) => '');
+final searchQueryProvider = valueStateProvider<String>('');
 
 /// Qué lado del mercado se muestra en Explorar: cartas en venta o búsquedas
 /// (demanda) de otros compradores.
 enum MarketSide { selling, wanted }
 
-final marketSideProvider = StateProvider<MarketSide>((ref) => MarketSide.selling);
+final marketSideProvider = valueStateProvider<MarketSide>(MarketSide.selling);
 
-class ListingsNotifier extends AutoDisposeAsyncNotifier<PaginatedState<Listing>> {
+class ListingsNotifier extends AsyncNotifier<PaginatedState<Listing>> {
   @override
   Future<PaginatedState<Listing>> build() async {
     final query = ref.watch(searchQueryProvider);
@@ -21,7 +22,7 @@ class ListingsNotifier extends AutoDisposeAsyncNotifier<PaginatedState<Listing>>
   }
 
   Future<void> loadMore() async {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null || !current.hasMore || current.isLoadingMore) return;
 
     state = AsyncData(current.copyWith(isLoadingMore: true));

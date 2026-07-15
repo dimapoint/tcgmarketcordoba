@@ -44,7 +44,7 @@ class BrowseScreen extends ConsumerWidget {
                     SearchBar(
                       hintText: 'Buscar carta...',
                       onChanged: (v) =>
-                          ref.read(searchQueryProvider.notifier).state = v,
+                          ref.read(searchQueryProvider.notifier).set(v),
                       leading: const Icon(Icons.search),
                     ),
                     const SizedBox(height: 10),
@@ -79,8 +79,7 @@ class BrowseScreen extends ConsumerWidget {
                       ],
                       selected: {side},
                       onSelectionChanged: (s) =>
-                          ref.read(marketSideProvider.notifier).state =
-                              s.first,
+                          ref.read(marketSideProvider.notifier).set(s.first),
                     ),
                   ],
                 ),
