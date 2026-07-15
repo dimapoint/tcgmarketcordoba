@@ -8,18 +8,19 @@ import '../widgets/price_text.dart';
 
 /// Textos de compartir para grupos de WhatsApp/Facebook. Funciones puras
 /// (testeables); la URL llega armada desde el caller con [currentOrigin].
+/// Sin emoji: el share sheet de Windows / algunos clientes lo corrompen.
 String listingShareText(Listing l, String url) {
   final cond = l.isFoil ? '(Foil, ${l.condition})' : '(${l.condition})';
   return 'Vendo ${l.cardName} $cond a ${PriceText.format(l.price)} '
-      'en TCG Market Córdoba 👉 $url';
+      'en TCG Market Córdoba: $url';
 }
 
 String wantedShareText(WantedOrder o, String url) =>
     'Busco ${o.cardName} — pago hasta ${PriceText.format(o.maxPrice)} '
-    '· TCG Market Córdoba 👉 $url';
+    '· TCG Market Córdoba: $url';
 
 String binderShareText(String url) =>
-    'Mis cartas en venta en TCG Market Córdoba 👉 $url';
+    'Mis cartas en venta en TCG Market Córdoba: $url';
 
 /// Origin actual en web ("https://tcgmarketcordoba.fly.dev"); '' fuera de
 /// http(s) (tests, desktop) — el link queda relativo pero usable.

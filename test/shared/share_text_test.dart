@@ -22,7 +22,7 @@ void main() {
   test('texto de listado sin foil', () {
     expect(
       listingShareText(listing(), 'https://x/listings/l1'),
-      'Vendo Jinx (NM) a \$ 15.000 en TCG Market Córdoba 👉 https://x/listings/l1',
+      'Vendo Jinx (NM) a \$ 15.000 en TCG Market Córdoba: https://x/listings/l1',
     );
   });
 
@@ -46,14 +46,14 @@ void main() {
     );
     expect(
       wantedShareText(o, 'https://x/buy-orders/b1'),
-      'Busco Viktor — pago hasta \$ 8.000 · TCG Market Córdoba 👉 https://x/buy-orders/b1',
+      'Busco Viktor — pago hasta \$ 8.000 · TCG Market Córdoba: https://x/buy-orders/b1',
     );
   });
 
   test('texto de carpeta', () {
     expect(
       binderShareText('https://x/u/dima'),
-      'Mis cartas en venta en TCG Market Córdoba 👉 https://x/u/dima',
+      'Mis cartas en venta en TCG Market Córdoba: https://x/u/dima',
     );
   });
 }
