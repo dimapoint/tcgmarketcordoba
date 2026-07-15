@@ -1,32 +1,57 @@
-# Imagen de producción para Fly.io: binario Go + build web de Flutter.
-# El build web se genera ANTES con deploy.ps1 (flutter build web) y acá
-# solo se copia — buildear Flutter dentro de Docker requiere el SDK (~2 GB).
+# syntax=docker/dockerfile:1
 
-# ── Stage 1: build del backend ───────────────────────────────────────────────
-FROM golang:1.26-alpine AS builder
-
-RUN apk --no-cache add ca-certificates tzdata
+# ── Stage 1: build Flutter web ────────────────────────────────────────────────
+FROM ghcr.io/cirruslabs/flutter:stable AS flutter-builder
 
 WORKDIR /app
 
+# Cache pub dependencies before copying full source
+COPY pubspec.yaml pubspec.lock ./
+RUN --mount=type=cache,target=/root/.pub-cache \
+    flutter pub get
+
+# Copy source tree and build for web
+COPY . .
+RUN flutter build web --release --base-href /
+
+# ── Stage 2: build Go API ─────────────────────────────────────────────────────
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS go-builder
+
+RUN apk add --no-cache ca-certificates tzdata
+
+WORKDIR /src
+
 COPY backend/go.mod backend/go.sum ./
-RUN go mod download && go mod verify
+RUN --mount=type=cache,target=/root/.cache/go/pkg/mod \
+    go mod download
 
+ARG TARGETARCH
 COPY backend/ .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -trimpath -ldflags="-s -w" -o /out/api .
+RUN --mount=type=cache,target=/root/.cache/go/build \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} \
+    go build -trimpath -ldflags="-s -w -extldflags '-static'" -o /api ./main.go
 
-# ── Stage 2: run ─────────────────────────────────────────────────────────────
+# ── Stage 3: runtime ──────────────────────────────────────────────────────────
+# Pull a static busybox so we have /bin/wget for the healthcheck.
+# scratch has no shell or tools at all — CMD-SHELL needs at least wget.
+FROM busybox:musl AS busybox
+
 FROM scratch
 
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=go-builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=go-builder /usr/share/zoneinfo                 /usr/share/zoneinfo
 
-USER 65534:65534
+# Minimal shell + wget for healthcheck; nothing else from busybox is copied
+COPY --from=busybox /bin/wget /bin/wget
+COPY --from=busybox /bin/sh   /bin/sh
 
-COPY --from=builder /out/api /api
-COPY build/web /web
+# API binary
+COPY --from=go-builder /api /api
 
+# Flutter web build — served by the Go webapp handler when WEB_DIR is set
+COPY --from=flutter-builder /app/build/web /web
+
+ENV PORT=8080
 ENV WEB_DIR=/web
 
 EXPOSE 8080

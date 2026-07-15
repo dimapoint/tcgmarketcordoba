@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel in-progress runs for the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ${{ vars.DOCKER_USERNAME }}/tcgmarketcordoba-api
+
+jobs:
+  # ── 1. Go backend: lint + test + build image ───────────────────────────────
+  backend:
+    name: Backend (Go)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: Run tests
+        run: go test ./... -race -count=1
+
+      # ── Docker steps ──────────────────────────────────────────────────────
+
+      - name: Log in to Docker Hub
+        # Only authenticate when we intend to push (not on forks)
+        if: github.event_name != 'pull_request' && vars.DOCKER_USERNAME != ''
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract Docker metadata (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            # tag :latest on main, :pr-<n> on PRs, :<sha> always
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=ref,event=pr
+            type=sha,format=short
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          # Push only on main; load locally on PRs so tests can use the image
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # GitHub Actions cache — keeps layer cache between runs
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Supply SBOM + provenance attestations for supply-chain transparency
+          sbom: ${{ github.event_name != 'pull_request' }}
+          provenance: ${{ github.event_name != 'pull_request' }}
+
+  # ── 2. Flutter web: analyze + build ───────────────────────────────────────
+  flutter-web:
+    name: Flutter Web
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # Pin to the SDK constraint declared in pubspec.yaml
+          flutter-version: '3.x'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build web (release)
+        run: flutter build web --release --dart-define=FLUTTER_WEB_USE_SKIA=true
+
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-web-${{ github.sha }}
+          path: build/web/
+          retention-days: 7

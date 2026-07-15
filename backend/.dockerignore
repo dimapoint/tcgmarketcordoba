@@ -1,21 +1,15 @@
-# Build artifacts
-*.test
-*.out
-vendor/
-
-# Secrets — never bake into the image
+# Local secrets — never bake into image
 .env
 *.env
 
-# Dev / editor noise
-.git
-.gitignore
-.gitattributes
-.vscode/
-.idea/
-*.swp
-*.swo
+# IDE / editor
+.idea
+.vscode
+*.code-workspace
 
-# CI / misc
+# Test artifacts
+*_test.go
+testdata/
+
+# Scratch directories
 tmp/
-.DS_Store
