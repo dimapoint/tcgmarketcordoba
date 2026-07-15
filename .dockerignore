@@ -1,5 +1,23 @@
-# Solo el backend y el build web de Flutter entran al contexto de Docker
-*
-!backend
-!build/web
+# Git
+.git
+.github
+
+# IDEs
+.idea
+.vscode
+
+# Flutter
+.dart_tool
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+
+# Builds (se generan dentro del Dockerfile)
+build
+
+# Archivos temporales
+*.log
+
+# Secretos
 backend/.env
+.env
