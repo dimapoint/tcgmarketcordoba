@@ -2,18 +2,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/account/screens/account_screen.dart';
 import '../../features/admin/screens/admin_screen.dart';
 import '../../features/auth/screens/sign_in_screen.dart';
 import '../../features/auth/screens/sign_up_screen.dart';
 import '../../features/browse/screens/browse_screen.dart';
 import '../../features/browse/screens/listing_detail_screen.dart';
 import '../../features/feedback/screens/feedback_screen.dart';
-import '../../features/my_listings/screens/my_listings_screen.dart';
 import '../../features/onboarding/onboarding_content.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
 import '../../features/post_listing/screens/post_listing_screen.dart';
 import '../../features/post_wanted/screens/post_wanted_screen.dart';
-import '../../features/profile/screens/profile_screen.dart';
 import '../../features/seller/screens/seller_screen.dart';
 import '../../features/wanted/screens/wanted_detail_screen.dart';
 import '../../features/wanted/screens/wanted_screen.dart';
@@ -39,8 +38,7 @@ class SessionRefreshNotifier extends ChangeNotifier {
 const _protectedPrefixes = [
   '/post',
   '/wanted/new',
-  '/my-listings',
-  '/profile',
+  '/account',
   '/admin',
   '/feedback',
 ];
@@ -139,8 +137,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/wanted/new',  pageBuilder: (c, s) => _page(s,
               PostWantedScreen(initialQuery: s.uri.queryParameters['q']))),
           GoRoute(path: '/post',        pageBuilder: (c, s) => _page(s, const PostListingScreen())),
-          GoRoute(path: '/my-listings', pageBuilder: (c, s) => _page(s, const MyListingsScreen())),
-          GoRoute(path: '/profile',     pageBuilder: (c, s) => _page(s, const ProfileScreen())),
+          GoRoute(path: '/account',     pageBuilder: (c, s) => _page(s,
+              AccountScreen(initialTab: s.uri.queryParameters['tab']))),
           GoRoute(path: '/feedback',    pageBuilder: (c, s) => _page(s, const FeedbackScreen())),
         ],
       ),
@@ -169,6 +167,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/buy-orders/:id',
         redirect: (c, s) => '/b/${s.pathParameters['id']}',
+      ),
+      // Mis Cartas y Perfil se unificaron en /account (tab "Mis cartas" /
+      // "Perfil"); estos alias mantienen vivos los bookmarks viejos.
+      GoRoute(
+        path: '/my-listings',
+        redirect: (c, s) => '/account',
+      ),
+      GoRoute(
+        path: '/profile',
+        redirect: (c, s) => '/account?tab=perfil',
       ),
       GoRoute(path: '/admin',      pageBuilder: (c, s) => _page(s, const AdminScreen())),
       GoRoute(path: '/sign-in',    pageBuilder: (c, s) => _page(s, const SignInScreen())),

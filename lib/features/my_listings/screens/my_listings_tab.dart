@@ -14,69 +14,53 @@ import '../../../shared/widgets/skeleton.dart';
 import '../../../shared/widgets/price_text.dart';
 import '../my_listings_provider.dart';
 
-class MyListingsScreen extends ConsumerWidget {
-  const MyListingsScreen({super.key});
+class MyListingsTab extends ConsumerWidget {
+  const MyListingsTab({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        body: SafeArea(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 800),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Mis publicaciones',
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.share_outlined),
-                          tooltip: 'Compartir mi carpeta',
-                          onPressed: () async {
-                            final profile =
-                                await ref.read(profileProvider.future);
-                            final username = profile?.username;
-                            if (username == null ||
-                                username.isEmpty ||
-                                !context.mounted) {
-                              return;
-                            }
-                            final url = '${currentOrigin()}/u/$username';
-                            await shareWithFallback(
-                              context,
-                              text: binderShareText(url),
-                              url: url,
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  const TabBar(
-                    tabs: [Tab(text: 'Activas'), Tab(text: 'Vendidas')],
-                  ),
-                  const Expanded(
-                    child: TabBarView(children: [
-                      _ListingsList(status: 'active'),
-                      _ListingsList(status: 'sold'),
-                    ]),
-                  ),
-                ],
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(
+              children: [
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.share_outlined),
+                  tooltip: 'Compartir mi carpeta',
+                  onPressed: () async {
+                    final profile = await ref.read(profileProvider.future);
+                    final username = profile?.username;
+                    if (username == null ||
+                        username.isEmpty ||
+                        !context.mounted) {
+                      return;
+                    }
+                    final url = '${currentOrigin()}/u/$username';
+                    await shareWithFallback(
+                      context,
+                      text: binderShareText(url),
+                      url: url,
+                    );
+                  },
+                ),
+              ],
             ),
           ),
-        ),
+          const TabBar(
+            tabs: [Tab(text: 'Activas'), Tab(text: 'Vendidas')],
+          ),
+          const Expanded(
+            child: TabBarView(children: [
+              _ListingsList(status: 'active'),
+              _ListingsList(status: 'sold'),
+            ]),
+          ),
+        ],
       ),
     );
   }

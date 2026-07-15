@@ -153,10 +153,10 @@ void main() {
         computeRedirect(
           loggedIn: true,
           hasSeenOnboarding: true,
-          uri: Uri.parse('/sign-up?from=%2Fmy-listings'),
+          uri: Uri.parse('/sign-up?from=%2Faccount'),
           matchedLocation: '/sign-up',
         ),
-        '/my-listings',
+        '/account',
       );
     });
 
@@ -234,6 +234,18 @@ void main() {
         ),
         '/',
       );
+    });
+
+    test('deslogueado en /account -> sign-in con from', () {
+      final r = computeRedirect(
+        loggedIn: false,
+        hasSeenOnboarding: true,
+        uri: Uri.parse('/account'),
+        matchedLocation: '/account',
+      );
+      final uri = Uri.parse(r!);
+      expect(uri.path, '/sign-in');
+      expect(uri.queryParameters['from'], '/account');
     });
 
     test('deslogueado en /admin -> sign-in con from', () {
@@ -401,6 +413,70 @@ void main() {
         router.routerDelegate.currentConfiguration.uri.path,
         '/sign-in',
       );
+    });
+
+    testWidgets(
+        'logueado: /my-listings y /profile redirigen a /account',
+        (tester) async {
+      SharedPreferences.setMockInitialValues(Map.of(_sessionPrefs));
+      final api = await _apiClient();
+      final onboarding = await _onboardingStore();
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(api),
+          onboardingStoreProvider.overrideWithValue(onboarding),
+        ],
+      );
+      addTearDown(container.dispose);
+      final router = container.read(routerProvider);
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      await tester.pumpAndSettle();
+
+      router.go('/my-listings');
+      await tester.pumpAndSettle();
+      expect(
+        router.routerDelegate.currentConfiguration.uri.path,
+        '/account',
+      );
+
+      router.go('/profile');
+      await tester.pumpAndSettle();
+      final uri = router.routerDelegate.currentConfiguration.uri;
+      expect(uri.path, '/account');
+      expect(uri.queryParameters['tab'], 'perfil');
+    });
+
+    testWidgets(
+        'deslogueado: /my-listings encadena redirect legacy + sign-in',
+        (tester) async {
+      SharedPreferences.setMockInitialValues(
+          {'onboarding.last_seen_version': kOnboardingLatestVersion});
+      final api = await _apiClient();
+      final onboarding = await _onboardingStore();
+      final container = ProviderContainer(
+        overrides: [
+          apiClientProvider.overrideWithValue(api),
+          onboardingStoreProvider.overrideWithValue(onboarding),
+        ],
+      );
+      addTearDown(container.dispose);
+      final router = container.read(routerProvider);
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      await tester.pumpAndSettle();
+
+      router.go('/my-listings');
+      await tester.pumpAndSettle();
+      final uri = router.routerDelegate.currentConfiguration.uri;
+      expect(uri.path, '/sign-in');
+      expect(uri.queryParameters['from'], '/account');
     });
 
     testWidgets(

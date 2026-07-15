@@ -7,8 +7,8 @@ import '../../../shared/widgets/error_state.dart';
 import '../../../shared/widgets/skeleton.dart';
 import '../profile_provider.dart';
 
-class ProfileScreen extends ConsumerWidget {
-  const ProfileScreen({super.key});
+class ProfileTab extends ConsumerWidget {
+  const ProfileTab({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -17,32 +17,28 @@ class ProfileScreen extends ConsumerWidget {
     final isAdmin =
         ref.watch(authSessionProvider).value?.user.isAdmin ?? false;
 
-    return Scaffold(
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: profileAsync.when(
-              loading: () => const Column(
-                children: [
-                  SizedBox(height: 24),
-                  ListTileSkeleton(),
-                  ListTileSkeleton(),
-                  ListTileSkeleton(),
-                ],
-              ),
-              error: (e, _) =>
-                  ErrorState(onRetry: () => ref.invalidate(profileProvider)),
-              data: (profile) => profile == null
-                  ? const SizedBox()
-                  : _ProfileBody(
-                      profile: profile,
-                      contactsAsync: contactsAsync,
-                      isAdmin: isAdmin,
-                    ),
-            ),
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: profileAsync.when(
+          loading: () => const Column(
+            children: [
+              SizedBox(height: 24),
+              ListTileSkeleton(),
+              ListTileSkeleton(),
+              ListTileSkeleton(),
+            ],
           ),
+          error: (e, _) =>
+              ErrorState(onRetry: () => ref.invalidate(profileProvider)),
+          data: (profile) => profile == null
+              ? const SizedBox()
+              : _ProfileBody(
+                  profile: profile,
+                  contactsAsync: contactsAsync,
+                  isAdmin: isAdmin,
+                ),
         ),
       ),
     );
@@ -94,13 +90,8 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
       padding: const EdgeInsets.all(16),
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Expanded(
-              child: Text(
-                'Mi perfil',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-            ),
             OutlinedButton.icon(
               icon: const Icon(Icons.logout, size: 18),
               label: const Text('Salir'),

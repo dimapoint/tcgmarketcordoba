@@ -15,15 +15,13 @@ class ScaffoldWithNav extends ConsumerWidget {
     (path: '/', icon: Icons.storefront_outlined, selectedIcon: Icons.storefront, label: 'Explorar'),
     (path: '/wanted', icon: Icons.travel_explore_outlined, selectedIcon: Icons.travel_explore, label: 'Busco'),
     (path: '/post', icon: Icons.add_circle_outline, selectedIcon: Icons.add_circle, label: 'Publicar'),
-    (path: '/my-listings', icon: Icons.style_outlined, selectedIcon: Icons.style, label: 'Mis Cartas'),
-    (path: '/profile', icon: Icons.person_outline, selectedIcon: Icons.person, label: 'Perfil'),
+    (path: '/account', icon: Icons.person_outline, selectedIcon: Icons.person, label: 'Mi cuenta'),
   ];
 
   static int _indexOf(String location) => switch (location) {
         String l when l.startsWith('/wanted') => 1, // cubre /wanted y /wanted/new
         String l when l.startsWith('/post') => 2,
-        String l when l.startsWith('/my-listings') => 3,
-        String l when l.startsWith('/profile') => 4,
+        String l when l.startsWith('/account') => 3,
         _ => 0,
       };
 

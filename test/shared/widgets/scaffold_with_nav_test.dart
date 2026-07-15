@@ -48,6 +48,18 @@ void main() {
     expect(find.text('3'), findsOneWidget);
   });
 
+  testWidgets('móvil: 4 destinos, Mi cuenta unifica Mis Cartas y Perfil',
+      (tester) async {
+    mobileSize(tester);
+    await tester.pumpWidget(_app(unseen: 0));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationDestination), findsNWidgets(4));
+    for (final label in ['Explorar', 'Busco', 'Publicar', 'Mi cuenta']) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
+  });
+
   testWidgets('móvil: sin novedades no hay badge', (tester) async {
     mobileSize(tester);
     await tester.pumpWidget(_app(unseen: 0));

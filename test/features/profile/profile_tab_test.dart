@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:tcgmarketcordoba/core/api/session.dart';
 import 'package:tcgmarketcordoba/features/auth/auth_provider.dart';
 import 'package:tcgmarketcordoba/features/profile/profile_provider.dart';
-import 'package:tcgmarketcordoba/features/profile/screens/profile_screen.dart';
+import 'package:tcgmarketcordoba/features/profile/screens/profile_tab.dart';
 import 'package:tcgmarketcordoba/shared/models/profile.dart';
 
 AuthSession _session({required bool isAdmin}) => AuthSession(
@@ -23,9 +23,12 @@ AuthSession _session({required bool isAdmin}) => AuthSession(
     contactMethodsProvider.overrideWith((ref) async => []),
   ]);
   final router = GoRouter(
-    initialLocation: '/profile',
+    initialLocation: '/account',
     routes: [
-      GoRoute(path: '/profile', builder: (c, s) => const ProfileScreen()),
+      GoRoute(
+        path: '/account',
+        builder: (c, s) => const Scaffold(body: ProfileTab()),
+      ),
       GoRoute(
         path: '/admin',
         builder: (c, s) => const Scaffold(body: Text('ADMIN')),
