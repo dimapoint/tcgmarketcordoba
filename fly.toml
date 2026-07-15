@@ -1,22 +1,27 @@
-# Fly.io: API Go + web de Flutter en una sola app.
-# Deploy: ./deploy.ps1 (buildea flutter web con la API_URL de producción y corre fly deploy)
+# fly.toml app configuration file generated for tcgmarketcordoba on 2026-07-15T12:26:46Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "tcgmarketcordoba"
-primary_region = "gru"
+app = 'tcgmarketcordoba'
+primary_region = 'gru'
+
+[build]
 
 [env]
-  PORT = "8080"
-  WEB_DIR = "/web"
-  PUBLIC_URL = "https://tcgmarketcordoba.fly.dev"
+  PORT = '8080'
+  PUBLIC_URL = 'https://tcgmarketcordoba.fly.dev'
+  WEB_DIR = '/web'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
 [[vm]]
-  memory = "256mb"
-  cpu_kind = "shared"
+  memory = '256mb'
+  cpu_kind = 'shared'
   cpus = 1
+  memory_mb = 256
