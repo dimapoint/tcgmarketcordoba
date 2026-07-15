@@ -112,6 +112,15 @@ class _ProfileBodyState extends ConsumerState<_ProfileBody> {
         ],
         const SizedBox(height: 16),
         Card(
+          child: ListTile(
+            leading: const Icon(Icons.feedback_outlined),
+            title: const Text('Reportar un problema o sugerencia'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/feedback'),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(

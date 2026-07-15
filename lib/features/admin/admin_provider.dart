@@ -34,6 +34,11 @@ final adminBuyOrdersProvider =
       .fetchBuyOrders(status: f.status, query: f.query);
 });
 
+final adminFeedbackProvider =
+    FutureProvider.autoDispose<List<FeedbackItem>>(
+  (ref) => ref.watch(adminRepositoryProvider).fetchFeedback(),
+);
+
 /// Estado del sync de cartas; mientras corre se re-consulta solo cada 3s
 /// (el polling además mantiene viva la máquina de Fly durante la corrida).
 final syncStatusProvider = FutureProvider.autoDispose<SyncStatus>((ref) async {

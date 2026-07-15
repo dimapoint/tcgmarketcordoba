@@ -7,6 +7,7 @@ import '../../features/auth/screens/sign_in_screen.dart';
 import '../../features/auth/screens/sign_up_screen.dart';
 import '../../features/browse/screens/browse_screen.dart';
 import '../../features/browse/screens/listing_detail_screen.dart';
+import '../../features/feedback/screens/feedback_screen.dart';
 import '../../features/my_listings/screens/my_listings_screen.dart';
 import '../../features/onboarding/onboarding_content.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
@@ -41,6 +42,7 @@ const _protectedPrefixes = [
   '/my-listings',
   '/profile',
   '/admin',
+  '/feedback',
 ];
 
 /// Decisión de redirect pura, testeable sin widgets.
@@ -113,6 +115,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/post',        builder: (c, s) => const PostListingScreen()),
           GoRoute(path: '/my-listings', builder: (c, s) => const MyListingsScreen()),
           GoRoute(path: '/profile',     builder: (c, s) => const ProfileScreen()),
+          GoRoute(path: '/feedback',    builder: (c, s) => const FeedbackScreen()),
         ],
       ),
       // Deep links cortos y compartibles: no chocan con las rutas JSON de la

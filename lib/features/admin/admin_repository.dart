@@ -15,6 +15,7 @@ abstract class AdminRepository {
   Future<void> setBuyOrderStatus(String id, String status);
   Future<void> startSync();
   Future<SyncStatus> fetchSyncStatus();
+  Future<List<FeedbackItem>> fetchFeedback();
 }
 
 class ApiAdminRepository implements AdminRepository {
@@ -62,6 +63,14 @@ class ApiAdminRepository implements AdminRepository {
   Future<SyncStatus> fetchSyncStatus() async {
     final data = await _api.get('/admin/sync-cards', auth: true);
     return SyncStatus.fromJson(data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<List<FeedbackItem>> fetchFeedback() async {
+    final data = await _api.get('/admin/feedback', auth: true);
+    return (data as List)
+        .map((j) => FeedbackItem.fromJson(j as Map<String, dynamic>))
+        .toList();
   }
 
   Map<String, String>? _filters(String status, String query) {

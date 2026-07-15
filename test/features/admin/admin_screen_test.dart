@@ -15,6 +15,17 @@ class _FakeAdminRepository implements AdminRepository {
   var syncStarts = 0;
 
   @override
+  Future<List<FeedbackItem>> fetchFeedback() async => [
+        FeedbackItem(
+          id: 'f1',
+          username: 'reporter',
+          category: 'bug',
+          message: 'algo se rompió',
+          createdAt: DateTime.utc(2026, 7, 15),
+        ),
+      ];
+
+  @override
   Future<AdminStats> fetchStats() async => const AdminStats(
         users: 10,
         activeListings: 5,

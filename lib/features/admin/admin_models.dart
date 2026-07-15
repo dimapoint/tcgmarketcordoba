@@ -25,6 +25,30 @@ class AdminStats {
       );
 }
 
+class FeedbackItem {
+  final String id;
+  final String username;
+  final String category;
+  final String message;
+  final DateTime createdAt;
+
+  const FeedbackItem({
+    required this.id,
+    required this.username,
+    required this.category,
+    required this.message,
+    required this.createdAt,
+  });
+
+  factory FeedbackItem.fromJson(Map<String, dynamic> json) => FeedbackItem(
+        id: json['id'] as String,
+        username: json['username'] as String,
+        category: json['category'] as String,
+        message: json['message'] as String,
+        createdAt: DateTime.parse(json['created_at'] as String),
+      );
+}
+
 class SyncSummary {
   final int sets;
   final int cards;

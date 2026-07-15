@@ -14,6 +14,7 @@ import (
 	"tcgmarketcordoba/internal/cards"
 	"tcgmarketcordoba/internal/config"
 	"tcgmarketcordoba/internal/db"
+	"tcgmarketcordoba/internal/feedback"
 	"tcgmarketcordoba/internal/httpx"
 	"tcgmarketcordoba/internal/listings"
 	"tcgmarketcordoba/internal/matches"
@@ -125,6 +126,10 @@ func main() {
 	mux.Handle("PATCH /admin/buy-orders/{id}", requireAdmin(http.HandlerFunc(adminH.PatchBuyOrder)))
 	mux.Handle("POST /admin/sync-cards", requireAdmin(http.HandlerFunc(adminH.StartSync)))
 	mux.Handle("GET /admin/sync-cards", requireAdmin(http.HandlerFunc(adminH.SyncStatus)))
+
+	feedbackH := &feedback.Handler{Store: feedback.NewPgStore(pool)}
+	mux.Handle("POST /feedback", requireAuth(http.HandlerFunc(feedbackH.Create)))
+	mux.Handle("GET /admin/feedback", requireAdmin(http.HandlerFunc(feedbackH.List)))
 
 	sellerH := &sellers.Handler{
 		Profiles:  profileStore,
