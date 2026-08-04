@@ -28,7 +28,11 @@ COPY . .
 # .env es un asset bundleado (pubspec.yaml) y gitignoreado: se genera acá con
 # los valores públicos de prod. API_URL = mismo origen; el client ID de Google
 # es público por diseño (OAuth). No hay secretos en esta imagen.
-RUN printf 'API_URL=https://tcgmarketcordoba.fly.dev\nGOOGLE_CLIENT_ID=184679876511-l6647cep8tj76meiru5mq7grdc9l5ljf.apps.googleusercontent.com\n' > .env \
+# ARGs con default para el deploy actual (Railway); overridable con --build-arg
+# para otros hosts (p.ej. Fly: --build-arg API_URL=https://tcgmarketcordoba.fly.dev).
+ARG API_URL=https://tcgmarketcordoba.up.railway.app
+ARG GOOGLE_CLIENT_ID=184679876511-l6647cep8tj76meiru5mq7grdc9l5ljf.apps.googleusercontent.com
+RUN printf 'API_URL=%s\nGOOGLE_CLIENT_ID=%s\n' "$API_URL" "$GOOGLE_CLIENT_ID" > .env \
  && flutter build web --release
 
 # ── Stage 1: build del backend ───────────────────────────────────────────────
