@@ -66,5 +66,5 @@ cd backend; go test ./...
 ## Troubleshooting
 
 - **`backend no respondió /health en 30s`**: falta `backend/.env` o la
-  `DATABASE_URL` no llega al pooler de Supabase. Ver logs corriendo
+  `DATABASE_URL` no llega al Postgres de Railway. Ver logs corriendo
   `go run .` en foreground dentro de `backend/`.

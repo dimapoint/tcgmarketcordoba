@@ -4,8 +4,8 @@ Marketplace peer-to-peer de cartas TCG para **Córdoba, Argentina**. Los usuario
 
 - **Frontend:** Flutter (Android · iOS · Web · Windows · macOS · Linux)
 - **Backend:** API Go (`net/http` stdlib) con auth propia (JWT)
-- **Datos:** Postgres + Storage hosteados en Supabase, accedidos **solo** server-side
-- **Producción:** [tcgmarketcordoba.fly.dev](https://tcgmarketcordoba.fly.dev) (Fly.io, región `gru`)
+- **Datos:** Postgres + Object Storage hosteados en Railway, accedidos **solo** server-side
+- **Producción:** [tcgmarketcordoba.up.railway.app](https://tcgmarketcordoba.up.railway.app) (Railway)
 
 ---
 
@@ -62,13 +62,14 @@ Los paths viejos `/listings/{id}` y `/buy-orders/{id}` redirigen a los cortos.
 
 ## Arquitectura
 
-La app Flutter habla **únicamente con la API Go**. Supabase quedó solo como hosting de Postgres y Storage, accedido server-side — se puede migrar la DB a Neon/Railway cambiando `DATABASE_URL`, y el Storage a S3/R2 reemplazando una sola struct (`internal/photos/storage.go`). **No hay dependencia de `supabase_flutter`.**
+La app Flutter habla **únicamente con la API Go**. Postgres y el Object Storage (bucket S3-compatible) están hosteados en Railway, accedidos server-side — migrar de proveedor es cambiar `DATABASE_URL`, o para el storage reemplazar una sola struct (`internal/photos/storage.go`, `S3Storage`). **No hay dependencia de `supabase_flutter`.**
 
 En producción el mismo proceso Go sirve el build web de Flutter (`WEB_DIR`) e inyecta meta tags Open Graph según la ruta, para que los links compartidos muestren preview.
 
 ```
-Flutter ──HTTP/JSON──▶ API Go ──pgx──▶ Postgres (Supabase hosting)
-              │            ├──REST + service role──▶ Supabase Storage (fotos)
+Flutter ──HTTP/JSON──▶ API Go ──pgx──▶ Postgres (Railway)
+              │            ├──S3 (minio-go)──▶ Railway Object Storage (fotos, privado)
+              │            ├──presigned GET──▶ GET /photos/{path...} (proxy propio)
               │            ├──proxy──▶ CDN de arte de cartas (cache local)
               │            └──(prod) SPA Flutter + OG tags (WEB_DIR)
 ```
@@ -78,10 +79,10 @@ Flutter ──HTTP/JSON──▶ API Go ──pgx──▶ Postgres (Supabase ho
 | Frontend       | Flutter 3 · Riverpod · GoRouter · http · google_fonts · share_plus |
 | Backend        | Go 1.26+ (`net/http` stdlib, sin framework)                        |
 | Auth           | JWT HS256 propio + refresh tokens rotativos · passwords bcrypt     |
-| Base de datos  | Postgres (hosteado en Supabase, backend conecta como owner)        |
-| Storage        | Supabase Storage vía backend (service role key)                    |
+| Base de datos  | Postgres (hosteado en Railway, backend conecta como owner)         |
+| Storage        | Railway Object Storage (bucket S3-compatible, privado) vía backend |
 | Catálogo       | Sync Riftbound (Riftcodex / Riot content) server-side              |
-| Deploy         | Fly.io (API + web en un solo contenedor)                           |
+| Deploy         | Railway (API + web en un solo contenedor)                          |
 
 **Detalles clave**
 
@@ -134,19 +135,19 @@ tcgmarketcordoba/
 │       ├── listings/             # CRUD de publicaciones
 │       ├── matches/              # Matches de búsquedas + badge
 │       ├── ogmeta/               # Open Graph tags por ruta
-│       ├── photos/               # Upload multipart → Supabase Storage
+│       ├── photos/               # Upload multipart → bucket S3 + proxy de presigned GET
 │       ├── prices/               # Referencia TCGPlayer + dólar
 │       ├── profiles/             # Perfil, contactos (+ validación), ciudades
 │       ├── riftbound/            # Cliente + sync de contenido Riftbound
 │       ├── sellers/              # Página pública de vendedor
 │       └── webapp/               # SPA Flutter + inyección OG
 ├── supabase/
-│   └── migrations/               # Migraciones SQL (ver abajo)
+│   └── migrations/               # Migraciones SQL — nombre histórico, ya no hay proyecto Supabase (ver abajo)
 ├── test/                         # Tests Flutter
 ├── docs/                         # Specs, planes, draft Riot Developer Portal
 ├── dev.ps1                       # Dev: backend + web hot reload
-├── deploy.ps1                    # Build web + fly deploy
-├── fly.toml                      # Config Fly.io
+├── deploy.ps1                    # Legado de Fly.io — deploy hoy es Railway (git push, ver Deploy)
+├── fly.toml                      # Legado de Fly.io, ya no se usa
 ├── docker-compose.yml
 └── CLAUDE.md                     # Guía para agentes / notas de arquitectura
 ```
@@ -158,8 +159,8 @@ tcgmarketcordoba/
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) ≥ 3.12
 - [Go](https://go.dev/dl/) ≥ 1.22 (el módulo pinnea 1.26.5)
 - [Docker](https://www.docker.com/) (opcional, solo para correr el backend en contenedor)
-- Un Postgres con las migraciones aplicadas (hoy: proyecto Supabase `tcgmarketcba`)
-- [Fly CLI](https://fly.io/docs/hands-on/install-flyctl/) (solo para deploy)
+- Un Postgres con las migraciones aplicadas (hoy: servicio `Postgres` en el proyecto Railway `TCGMARKETCORDOBA`)
+- [Railway CLI](https://docs.railway.com/guides/cli) (solo para deploy/gestión de infra)
 
 ---
 
@@ -178,12 +179,14 @@ GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com   # opcional; habilita "Continu
 
 ```env
 PORT=8080
-DATABASE_URL=postgresql://postgres:...@<host>:5432/postgres   # pooler IPv4 en Supabase
+DATABASE_URL=postgresql://postgres:...@<host>:5432/railway    # Postgres de Railway
 JWT_SECRET=<64 chars aleatorios>
-SUPABASE_URL=https://<project-ref>.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+S3_ENDPOINT=t3.storageapi.dev                                 # railway bucket credentials
+S3_ACCESS_KEY=<access-key>
+S3_SECRET_KEY=<secret-key>
+S3_BUCKET=<nombre-del-bucket>
 RIOT_API_KEY=<key de developer.riotgames.com>                 # sync de catálogo
-PUBLIC_URL=http://localhost:8080                              # base absoluta og:url / og:image
+PUBLIC_URL=http://localhost:8080                              # base absoluta og:url / og:image / proxy de fotos
 GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com              # opcional; mismo valor que el del frontend
 # WEB_DIR=                                                    # solo prod: path al build Flutter
 ```
@@ -192,17 +195,17 @@ GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com              # opcional; mismo 
 |----------|:-----------:|-----|
 | `DATABASE_URL` | sí | Pool pgx |
 | `JWT_SECRET` | sí | Firma de access tokens |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | para fotos | Upload a Storage |
+| `S3_ENDPOINT` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` / `S3_BUCKET` | para fotos | Upload al bucket S3-compatible (`railway bucket credentials`) |
 | `RIOT_API_KEY` | para sync | Admin / CLI de catálogo Riftbound |
-| `PUBLIC_URL` | no (default localhost) | URLs absolutas en Open Graph |
+| `PUBLIC_URL` | no (default localhost) | URLs absolutas en Open Graph y en el proxy de fotos (`/photos/{path}`) |
 | `GOOGLE_CLIENT_ID` | no | Login con Google (si falta, el botón no aparece) |
 | `WEB_DIR` | no | Si está seteado, el server sirve el SPA + OG |
 
 ### Login con Google (opcional)
 
 1. En [Google Cloud Console](https://console.cloud.google.com/apis/credentials) creá un **OAuth client ID** de tipo *Web application*.
-2. En **Authorized JavaScript origins** agregá `http://localhost:5003` (dev) y `https://tcgmarketcordoba.fly.dev` (prod). No hace falta redirect URI (el flujo usa Google Identity Services, no redirects).
-3. Poné el client ID en ambos `.env` (`GOOGLE_CLIENT_ID`); en prod además `fly secrets set GOOGLE_CLIENT_ID=...`.
+2. En **Authorized JavaScript origins** agregá `http://localhost:5003` (dev) y `https://tcgmarketcordoba.up.railway.app` (prod). No hace falta redirect URI (el flujo usa Google Identity Services, no redirects).
+3. Poné el client ID en ambos `.env` (`GOOGLE_CLIENT_ID`); en prod además `railway variable set GOOGLE_CLIENT_ID=... --service tcgmarketcordoba`.
 4. Aplicá la migración `20260706000001_google_oauth.sql` (permite usuarios sin contraseña).
 
 Si `GOOGLE_CLIENT_ID` está vacío, el botón no se muestra y `POST /auth/google` responde 503. El backend valida el `id_token` contra `oauth2.googleapis.com/tokeninfo` (audiencia + email verificado) y matchea la cuenta por email: si el email ya existe, Google inicia sesión en esa misma cuenta; si no, la crea (con profile, sin contraseña).
@@ -254,13 +257,9 @@ flutter build web   # build web
 
 ## Deploy
 
-Producción corre en Fly.io: API Go + web Flutter en un solo contenedor (`WEB_DIR=/web`, `PUBLIC_URL=https://tcgmarketcordoba.fly.dev`).
+Producción corre en Railway: API Go + web Flutter en un solo contenedor (build desde el `Dockerfile` del repo, `WEB_DIR=/web`, `PUBLIC_URL=https://tcgmarketcordoba.up.railway.app`).
 
-```powershell
-./deploy.ps1        # buildea Flutter web con la API_URL de prod y corre fly deploy
-```
-
-Requiere `flyctl` autenticado y secretos de Fly configurados (`DATABASE_URL`, `JWT_SECRET`, `SUPABASE_*`, etc.).
+Railway despliega automáticamente con cada push a `master` (servicio `tcgmarketcordoba`, proyecto `TCGMARKETCORDOBA`). Variables (`DATABASE_URL`, `JWT_SECRET`, `S3_*`, etc.) se gestionan con `railway variable set KEY=value --service tcgmarketcordoba` o desde el dashboard.
 
 ---
 
@@ -354,7 +353,7 @@ Base URL = `API_URL`. Todos los errores devuelven `{"error": "<mensaje en españ
 
 ## Schema de base de datos
 
-Diseño en BCNF con auth propia (tabla `users` propia, **no** `auth.users` de Supabase).
+Diseño en BCNF con auth propia (tabla `users` propia, sin dependencia de ningún schema `auth.*` de un proveedor).
 
 ```
 provinces → cities
@@ -370,13 +369,13 @@ buy_orders (buyer, card_printing, min_condition, max_price, quantity, status)
 
 - `profiles.id` referencia `users.id`. El `username` por defecto es la parte local del email.
 - Una sola buy order `active` por (buyer, card_printing).
-- Existen políticas RLS pero son **legado**: el backend conecta como owner de las tablas.
+- No hay RLS (se sacó en `20260806000001_drop_legacy_rls.sql`): el backend siempre conectó como owner de las tablas, así que nunca se aplicaba.
 
 ---
 
 ## Migraciones
 
-En `supabase/migrations/`, se aplican en orden:
+En `supabase/migrations/` (nombre histórico; ya no hay proyecto Supabase linkeado), se aplican en orden:
 
 | Archivo | Contenido |
 |---|---|
@@ -393,11 +392,12 @@ En `supabase/migrations/`, se aplican en orden:
 | `20260710000001_admin_flag.sql` | `profiles.is_admin` |
 | `20260711000001_unique_active_buy_orders.sql` | Una búsqueda activa por carta por usuario |
 | `20260711000002_match_notifications.sql` | `profiles.matches_seen_at` (badge de novedades) |
+| `20260806000001_drop_legacy_rls.sql` | Saca las policies RLS legado (dependían de `auth.uid()`/rol `authenticated`) |
 
-Aplicar:
+Aplicar (contra el `DATABASE_URL` de Railway, no hay `supabase db push`):
 
 ```bash
-supabase db push
+psql "$DATABASE_URL" -f supabase/migrations/<archivo>.sql
 ```
 
 > Nota Riftbound: el set **Origins** usa el código `OGN` (no `ORI`).
@@ -421,7 +421,7 @@ flutter test
 - **TDD:** test que falla → implementación → verde, por paquete/feature.
 - **Commits convencionales:** `feat:`, `fix:`, `feat(backend):`, `chore(docker):`, …
 - **Mensajes de API al usuario en español.**
-- **Deps de Go mínimas:** `pgx/v5`, `golang-jwt/v5`, `x/crypto`.
+- **Deps de Go mínimas:** `pgx/v5`, `golang-jwt/v5`, `x/crypto`, `minio-go/v7` (bucket S3-compatible).
 
 ---
 
@@ -429,4 +429,4 @@ flutter test
 
 Android · iOS · Web · Windows · macOS · Linux
 
-La distribución principal hoy es **web** en Fly.io; el mismo codebase Flutter puede generar builds nativos.
+La distribución principal hoy es **web** en Railway; el mismo codebase Flutter puede generar builds nativos.
