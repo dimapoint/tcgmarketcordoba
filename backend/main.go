@@ -142,15 +142,18 @@ func main() {
 	}
 	mux.HandleFunc("GET /sellers/{username}", sellerH.Get)
 
+	s3Storage, err := photos.NewS3Storage(cfg.S3Endpoint, cfg.S3AccessKey, cfg.S3SecretKey, cfg.S3Bucket, cfg.PublicURL)
+	if err != nil {
+		log.Fatal(err)
+	}
 	photoH := &photos.Handler{
-		Store: photos.NewPgStore(pool),
-		Uploader: &photos.SupabaseStorage{
-			BaseURL:    cfg.SupabaseURL,
-			ServiceKey: cfg.SupabaseServiceKey,
-			Bucket:     "listing-photos",
-		},
+		Store:    photos.NewPgStore(pool),
+		Uploader: s3Storage,
 	}
 	mux.Handle("POST /listings/{id}/photos", requireAuth(http.HandlerFunc(photoH.Upload)))
+
+	photoProxy := &photos.Proxy{Client: s3Storage.Client, Bucket: cfg.S3Bucket}
+	mux.HandleFunc("GET /photos/{path...}", photoProxy.Serve)
 
 	// En producción el mismo server sirve el build web de Flutter; las rutas
 	// de API registradas arriba tienen precedencia sobre el catch-all "/".

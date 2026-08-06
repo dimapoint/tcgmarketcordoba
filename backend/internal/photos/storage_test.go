@@ -1,36 +1,35 @@
 package photos
 
 import (
-	"context"
-	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
-func TestSupabaseStorageUpload(t *testing.T) {
-	var gotPath, gotAuth string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotPath = r.URL.Path
-		gotAuth = r.Header.Get("Authorization")
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer srv.Close()
-
-	s := &SupabaseStorage{BaseURL: srv.URL, ServiceKey: "sk", Bucket: "listing-photos"}
-	url, err := s.Upload(context.Background(), "listings/l1/1.jpg", "image/jpeg",
-		strings.NewReader("fake-bytes"))
+func TestNewS3StorageStripsSchemeAndTrailingSlash(t *testing.T) {
+	s, err := NewS3Storage("https://t3.storageapi.dev", "ak", "sk", "my-bucket", "https://example.com/")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotPath != "/storage/v1/object/listing-photos/listings/l1/1.jpg" {
-		t.Fatalf("path = %q", gotPath)
+	if got := s.Client.EndpointURL().Host; got != "t3.storageapi.dev" {
+		t.Fatalf("endpoint host = %q", got)
 	}
-	if gotAuth != "Bearer sk" {
-		t.Fatalf("auth = %q", gotAuth)
+	if s.PublicURL != "https://example.com" {
+		t.Fatalf("PublicURL = %q, want trailing slash trimmed", s.PublicURL)
 	}
-	want := srv.URL + "/storage/v1/object/public/listing-photos/listings/l1/1.jpg"
-	if url != want {
-		t.Fatalf("url = %q, want %q", url, want)
+	if s.Bucket != "my-bucket" {
+		t.Fatalf("Bucket = %q", s.Bucket)
+	}
+}
+
+func TestProxyServeRejectsEmptyOrTraversalPath(t *testing.T) {
+	p := &Proxy{Bucket: "my-bucket"}
+	for _, path := range []string{"", "listings/../../etc/passwd"} {
+		req := httptest.NewRequest("GET", "/photos/"+path, nil)
+		req.SetPathValue("path", path)
+		w := httptest.NewRecorder()
+		p.Serve(w, req)
+		if w.Code != 404 {
+			t.Fatalf("path %q: status = %d, want 404", path, w.Code)
+		}
 	}
 }

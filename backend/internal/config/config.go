@@ -8,15 +8,17 @@ import (
 )
 
 type Config struct {
-	Port               string
-	DatabaseURL        string
-	JWTSecret          string
-	SupabaseURL        string
-	SupabaseServiceKey string
-	RiotAPIKey         string
-	WebDir             string
-	PublicURL          string
-	GoogleClientID     string
+	Port           string
+	DatabaseURL    string
+	JWTSecret      string
+	S3Endpoint     string
+	S3AccessKey    string
+	S3SecretKey    string
+	S3Bucket       string
+	RiotAPIKey     string
+	WebDir         string
+	PublicURL      string
+	GoogleClientID string
 }
 
 // Load lee variables de entorno; si existe un archivo .env en el CWD
@@ -24,15 +26,17 @@ type Config struct {
 func Load() (Config, error) {
 	loadDotEnv(".env")
 	cfg := Config{
-		Port:               getenv("PORT", "8080"),
-		DatabaseURL:        os.Getenv("DATABASE_URL"),
-		JWTSecret:          os.Getenv("JWT_SECRET"),
-		SupabaseURL:        os.Getenv("SUPABASE_URL"),
-		SupabaseServiceKey: os.Getenv("SUPABASE_SERVICE_ROLE_KEY"),
-		RiotAPIKey:         os.Getenv("RIOT_API_KEY"),
-		WebDir:             os.Getenv("WEB_DIR"),
-		PublicURL:          strings.TrimSuffix(getenv("PUBLIC_URL", "http://localhost:8080"), "/"),
-		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		Port:           getenv("PORT", "8080"),
+		DatabaseURL:    os.Getenv("DATABASE_URL"),
+		JWTSecret:      os.Getenv("JWT_SECRET"),
+		S3Endpoint:     os.Getenv("S3_ENDPOINT"),
+		S3AccessKey:    os.Getenv("S3_ACCESS_KEY"),
+		S3SecretKey:    os.Getenv("S3_SECRET_KEY"),
+		S3Bucket:       os.Getenv("S3_BUCKET"),
+		RiotAPIKey:     os.Getenv("RIOT_API_KEY"),
+		WebDir:         os.Getenv("WEB_DIR"),
+		PublicURL:      strings.TrimSuffix(getenv("PUBLIC_URL", "http://localhost:8080"), "/"),
+		GoogleClientID: os.Getenv("GOOGLE_CLIENT_ID"),
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required")
